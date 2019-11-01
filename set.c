@@ -1243,8 +1243,11 @@ int rpmsetcmp(const char *str1, const char *str2)
  * Simple API for creating set-versions.
  */
 
-#include "system.h"
-#include "rpmlib.h"
+#include <stdio.h>
+#define xmalloc malloc
+#define xrealloc realloc
+#define xstrdup strdup
+#define _free(s) (free((void *)(s)), NULL)
 
 // Internally, "struct set" is just a bag of strings and their hash values.
 struct set {
