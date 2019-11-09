@@ -19,7 +19,7 @@ static inline bool base64unpack6(const char *s, __m128i *x)
     __m128i hi_nib = _mm_srli_epi32(*x, 4);
     __m128i lo = _mm_shuffle_epi8(lut_lo, lo_nib);
     __m128i eq_2f = _mm_cmpeq_epi8(*x, mask_2f);
-    hi_nib = _mm_and_si128(*x, mask_2f);
+    hi_nib = _mm_and_si128(hi_nib, mask_2f);
     __m128i hi = _mm_shuffle_epi8(lut_hi, hi_nib);
     __m128i roll = _mm_shuffle_epi8(lut_roll, _mm_add_epi8(eq_2f, hi_nib));
     if (!_mm_testz_si128(lo, hi))
@@ -32,8 +32,8 @@ static inline bool base64unpack24(const char *s, __m128i *x)
 {
     if (!base64unpack6(s, x))
 	return false;
-    *x = _mm_maddubs_epi16(*x, _mm_set1_epi32(0x01400140));
-    *x = _mm_madd_epi16(*x, _mm_set1_epi32(0x00011000));
+    *x = _mm_maddubs_epi16(*x, _mm_set1_epi32(0x40014001));
+    *x = _mm_madd_epi16(*x, _mm_set1_epi32(0x10000001));
     return true;
 }
 

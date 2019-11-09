@@ -44,8 +44,8 @@ static inline unsigned pack9x32(const uint32_t v[32], char *s)
     x6 = _mm_and_si128(mask, _mm_loadu_si128((const void *) &v[24]));
     x7 = _mm_and_si128(mask, _mm_loadu_si128((const void *) &v[28]));
     x5 = _mm_srli_epi32(x5, 3);
-    x5 = _mm_or_si128(x2, _mm_slli_epi32(x6, 6));
-    x5 = _mm_or_si128(x2, _mm_slli_epi32(x7, 15));
+    x5 = _mm_or_si128(x5, _mm_slli_epi32(x6, 6));
+    x5 = _mm_or_si128(x5, _mm_slli_epi32(x7, 15));
     _mm_storeu_si128((void *) &s[32], base64pack24(x5));
     return 48;
 }
