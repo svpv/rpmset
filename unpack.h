@@ -28,37 +28,53 @@ static inline bool base64unpack6(const char *s, __m128i *x)
     return true;
 }
 
+static inline __m128i base64glue12(__m128i x)
+{
+    return _mm_maddubs_epi16(x, _mm_set1_epi32(0x40014001));
+}
+
+static inline __m128i base64glue24(__m128i x)
+{
+    return _mm_madd_epi16(x, _mm_set1_epi32(0x10000001));
+}
+
 static inline bool base64unpack24(const char *s, __m128i *x)
 {
     if (!base64unpack6(s, x))
 	return false;
-    *x = _mm_maddubs_epi16(*x, _mm_set1_epi32(0x40014001));
-    *x = _mm_madd_epi16(*x, _mm_set1_epi32(0x10000001));
+    *x = base64glue12(*x);
+    *x = base64glue24(*x);
     return true;
 }
 
 static inline unsigned unpack9x32(const char *s, uint32_t v[32])
 {
     __m128i x0, x1, x2, out;
-    if (!base64unpack24(s +  0, &x0)) return 0;
-    if (!base64unpack24(s + 16, &x1)) return 0;
-    if (!base64unpack24(s + 32, &x2)) return 0;
     const __m128i mask = _mm_set1_epi32((1 << 9) - 1);
+    if (!base64unpack6(s +  0, &x0)) return 0;
+    x0 = base64glue12(x0);
     out = _mm_and_si128(mask, x0);
+    x0 = base64glue24(x0);
     _mm_storeu_si128((void *) &v[0], out);
     out = _mm_and_si128(mask, _mm_srli_epi32(x0, 9));
     _mm_storeu_si128((void *) &v[4], out);
+    if (!base64unpack6(s + 16, &x1)) return 0;
     out = _mm_and_si128(mask,
 	    _mm_or_si128(_mm_srli_epi32(x0, 18),
 			 _mm_slli_epi32(x1, 6)));
+    x1 = base64glue12(x1);
+    x1 = base64glue24(x1);
     _mm_storeu_si128((void *) &v[8], out);
     out = _mm_and_si128(mask, _mm_srli_epi32(x1, 3));
     _mm_storeu_si128((void *) &v[12], out);
     out = _mm_and_si128(mask, _mm_srli_epi32(x1, 12));
     _mm_storeu_si128((void *) &v[16], out);
+    if (!base64unpack6(s + 32, &x2)) return 0;
     out = _mm_and_si128(mask,
 	    _mm_or_si128(_mm_srli_epi32(x1, 21),
 			 _mm_slli_epi32(x2, 3)));
+    x2 = base64glue12(x2);
+    x2 = base64glue24(x2);
     _mm_storeu_si128((void *) &v[20], out);
     out = _mm_and_si128(mask, _mm_srli_epi32(x2, 6));
     _mm_storeu_si128((void *) &v[24], out);
