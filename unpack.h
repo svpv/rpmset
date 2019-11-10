@@ -118,20 +118,17 @@ static inline unsigned unpack10x24(const char *s, uint32_t v[24])
     return 40;
 }
 
-static inline unsigned unpack30x3(const char *s, uint32_t v[3], unsigned *extra6)
+static inline unsigned unpack30x3(const char *s, uint32_t v[3])
 {
-    __m128i x;
+    __m128i x, y;
     if (!base64unpack6(s, &x)) return 0;
-    const __m128i mask = _mm_set1_epi32((1 << 30) - 1);
-    const __m128i unpack = _mm_setr_epi8(
-	    0, 1,  2, 12,  4,  5,  6, 13,
-	    8, 9, 10, 14, -1, -1, -1, -1);
-    x = base64glue12(x);
-    x = base64glue24(x);
-    x = _mm_shuffle_epi8(x, unpack);
-    _mm_storeu_si128((void *) v, _mm_and_si128(mask, x));
-    unsigned extra3 = _mm_movemask_ps(_mm_castsi128_ps(x));
-    x = _mm_slli_epi32(x, 1);
-    *extra6 = extra3 << 3 | _mm_movemask_ps(_mm_castsi128_ps(x));
-    return 16;
+    const __m128i hi6 = _mm_setr_epi8(
+	    -1, -1, -1, 12, -1, -1, -1, 13,
+	    -1, -1, -1, 14, -1, -1, -1, 15);
+    y = base64glue12(x);
+    x = _mm_shuffle_epi8(x, hi6);
+    y = base64glue24(y);
+    x = _mm_or_si128(x, y);
+    _mm_storeu_si128((void *) v, x);
+    return 15;
 }
