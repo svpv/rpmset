@@ -49,3 +49,32 @@ static inline unsigned pack9x32(const uint32_t v[32], char *s)
     _mm_storeu_si128((void *) &s[32], base64pack24(x5));
     return 48;
 }
+
+static inline unsigned pack10x24(const uint32_t v[24], char *s)
+{
+    // 10+10+4 | 6+10+8 | 2+10
+    __m128i x0, x1, x2, x3, x4, x5;
+    const __m128i mask = _mm_set1_epi32((1 << 10) - 1);
+    x0 = _mm_and_si128(mask, _mm_loadu_si128((const void *) &v[0]));
+    x1 = _mm_and_si128(mask, _mm_loadu_si128((const void *) &v[4]));
+    x2 = _mm_and_si128(mask, _mm_loadu_si128((const void *) &v[8]));
+    x0 = _mm_or_si128(x0, _mm_slli_epi32(x1, 10));
+    x0 = _mm_or_si128(x0, _mm_slli_epi32(x2, 20));
+    _mm_storeu_si128((void *) &s[0], base64pack24(x0));
+    x3 = _mm_and_si128(mask, _mm_loadu_si128((const void *) &v[12]));
+    x4 = _mm_and_si128(mask, _mm_loadu_si128((const void *) &v[16]));
+    x2 = _mm_srli_epi32(x2, 4);
+    x2 = _mm_or_si128(x2, _mm_slli_epi32(x3, 6));
+    x2 = _mm_or_si128(x2, _mm_slli_epi32(x4, 16));
+    _mm_storeu_si128((void *) &s[16], base64pack24(x2));
+    x5 = _mm_and_si128(mask, _mm_loadu_si128((const void *) &v[20]));
+    x4 = _mm_srli_epi32(x4, 8);
+    x4 = _mm_or_si128(x4, _mm_slli_epi32(x5, 2));
+    x4 = base64pack24(x4);
+    const __m128i pack16 = _mm_setr_epi8(
+	     0,  1,  4,  5,  8,  9, 12, 13,
+	    -1, -1, -1, -1, -1, -1, -1, -1);
+    x4 = _mm_shuffle_epi8(x4, pack16);
+    _mm_storel_epi64((void *) &s[32], x4);
+    return 40;
+}
