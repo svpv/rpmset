@@ -12,13 +12,18 @@ static inline __m128i base64pack6(__m128i x)
     return _mm_add_epi8(x, _mm_shuffle_epi8(lut, y));
 }
 
-static inline __m128i base64pack24(__m128i x)
+static inline __m128i base64unglue(__m128i x)
 {
     __m128i x0 =                _mm_and_si128(x, _mm_set1_epi32(63));
     __m128i x1 = _mm_slli_epi32(_mm_and_si128(x, _mm_set1_epi32(63<<6)), 2);
     __m128i x2 = _mm_slli_epi32(_mm_and_si128(x, _mm_set1_epi32(63<<12)), 4);
     __m128i x3 = _mm_slli_epi32(_mm_and_si128(x, _mm_set1_epi32(63<<18)), 6);
-    x = _mm_or_si128(_mm_or_si128(x0, x1), _mm_or_si128(x2, x3));
+    return _mm_or_si128(_mm_or_si128(x0, x1), _mm_or_si128(x2, x3));
+}
+
+static inline __m128i base64pack24(__m128i x)
+{
+    x = base64unglue(x);
     return base64pack6(x);
 }
 
