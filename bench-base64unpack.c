@@ -44,15 +44,20 @@ uint64_t unpack10x24x16(const char *s, uint32_t *v)
     return wrap_loop16(unpack10x24, s, v, 24, 40);
 }
 
+uint64_t unpack30x3x16(const char *s, uint32_t *v)
+{
+    return wrap_loop16(unpack30x3, s, v, 3, 15);
+}
+
 void bench_loop16(const char *name,
 	unsigned (*pack)(const uint32_t *v, char *s),
 	uint64_t (*unpack_loop16)(const char *s, uint32_t *v),
 	unsigned m, unsigned n, unsigned len)
 {
-    uint32_t v[16*n], w[16*n];
+    uint32_t v[16*n+1], w[16*n+1];
     for (unsigned i = 0; i < 16*n; i++)
 	v[i] = rand32();
-    char s[16*len];
+    char s[16*len+1];
     for (unsigned i = 0; i < 16; i++) {
 	unsigned l = pack(v + n * i, s + len * i);
 	assert(l == len);
@@ -71,5 +76,6 @@ int main()
 {
     bench_loop16("unpack9x32",  pack9x32,  unpack9x32x16,   9, 32, 48);
     bench_loop16("unpack10x24", pack10x24, unpack10x24x16, 10, 24, 40);
+    bench_loop16("unpack30x3",  pack30x3,  unpack30x3x16,  30,  3, 15);
     return 0;
 }
