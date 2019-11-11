@@ -94,7 +94,12 @@ static inline unsigned pack30x3(const uint32_t v[3], char *s)
     x = _mm_and_si128(mask, _mm_loadu_si128((const void *) v));
     y = _mm_shuffle_epi8(x, hi6);
     x = base64unglue(x);
+#ifdef __SSE4_1__
     x = _mm_blend_epi16(x, y, 128 + 64);
+#else
+    x = _mm_and_si128(x, _mm_setr_epi32(-1, -1, -1, 0));
+    x = _mm_or_si128(x, y);
+#endif
     _mm_storeu_si128((void *) s, base64pack6(x));
     return 15;
 }
