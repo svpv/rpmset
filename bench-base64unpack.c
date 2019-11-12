@@ -4,8 +4,7 @@
 #include <string.h>
 #include <assert.h>
 #include <x86intrin.h>
-#include "pack.h"
-#include "unpack.h"
+#include "base64pack-sse4.h"
 
 // Lehmer random number generator
 static inline uint32_t rand32(void)
