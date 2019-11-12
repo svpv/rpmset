@@ -203,6 +203,34 @@ static inline bool unpack10x24c40(const char *s, uint32_t *v, unsigned *e)
 
 #define Mask(k) ((1U << k) - 1)
 
+static inline void pack28x3c14(const uint32_t *v, char *s, unsigned e)
+{
+    uint32_t w[4];
+    w[0]  =  v[0] & Mask(24);
+    w[1]  = (v[0] & Mask(28)) >> 24;
+    w[1] |= (v[1] & Mask(20)) << 4;
+    w[2]  = (v[1] & Mask(28)) >> 20;
+    w[2] |= (v[2] & Mask(16)) << 8;
+    w[3]  = (v[2] & Mask(28)) >> 16;
+    __m128i x = _mm_loadu_si128((void *) w);
+    _mm_storeu_si128((void *) s, base64pack24(x));
+    (void) e;
+}
+
+static inline bool unpack28x3c14(const char *s, uint32_t *v, unsigned *e)
+{
+    __m128i x;
+    if (!base64unpack24(s - 2, &x)) return false;
+    const __m128i shuf = _mm_setr_epi8(
+	     1,  2,  4,  5,  6,  8,  9, 10,
+	    10, 12, 13, 14, -1, -1, -1, -1);
+    x = _mm_shuffle_epi8(x, shuf);
+    x = _mm_mullo_epi32(x, _mm_setr_epi32(1, 16, 1, 0));
+    x = _mm_srli_epi32(x, 4);
+    _mm_storeu_si128((void *) v, x);
+    return (void) e, true;
+}
+
 static inline void pack28x6c28(const uint32_t *v, char *s, unsigned e)
 {
     uint32_t x[8];
