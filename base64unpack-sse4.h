@@ -266,7 +266,7 @@ static inline void pack29x3c15e3(const uint32_t *v, char *s, unsigned e)
 
 static inline bool unpack29x3c15e3(const char *s, uint32_t *v, unsigned *e)
 {
-    __m128i x, y;
+    __m128i x, y, z;
     if (!base64unpack6(s, &x)) return false;
     const __m128i mask = _mm_set1_epi32((1 << 29) - 1);
     const __m128i hi6 = _mm_setr_epi8(
@@ -274,12 +274,12 @@ static inline bool unpack29x3c15e3(const char *s, uint32_t *v, unsigned *e)
 	    -1, -1, -1, 14, -1, -1, -1, -1);
     y = base64glue12(x);
     x = _mm_shuffle_epi8(x, hi6);
+    z = _mm_slli_epi32(x, 2);
+    *e = _mm_movemask_ps(_mm_castsi128_ps(z));
     y = base64glue24(y);
     x = _mm_or_si128(x, y);
-    y = _mm_and_si128(x, mask);
-    _mm_storeu_si128((void *) v, y);
-    x = _mm_slli_epi32(x, 2);
-    *e = _mm_movemask_ps(_mm_castsi128_ps(x));
+    x = _mm_and_si128(x, mask);
+    _mm_storeu_si128((void *) v, x);
     return true;
 }
 
