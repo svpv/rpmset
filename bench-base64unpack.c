@@ -43,6 +43,11 @@ uint64_t unpack10x24x16(const char *s, uint32_t *v, unsigned *e)
     return wrap_loop16(unpack10x24c40e0, s, v, e, 24, 40);
 }
 
+uint64_t unpack29x3x16(const char *s, uint32_t *v, unsigned *e)
+{
+    return wrap_loop16(unpack29x3c15e3, s, v, e, 3, 15);
+}
+
 uint64_t unpack30x3x16(const char *s, uint32_t *v, unsigned *e)
 {
     return wrap_loop16(unpack30x3c15e0, s, v, e, 3, 15);
@@ -81,6 +86,7 @@ int main()
 {
     bench_loop16("unpack9x32",  pack9x32c48e0,  unpack9x32x16,   9, 32, 48, 0);
     bench_loop16("unpack10x24", pack10x24c40e0, unpack10x24x16, 10, 24, 40, 0);
+    bench_loop16("unpack29x3",  pack29x3c15e3,  unpack29x3x16,  29,  3, 15, 3);
     bench_loop16("unpack30x3",  pack30x3c15e0,  unpack30x3x16,  30,  3, 15, 0);
     return 0;
 }

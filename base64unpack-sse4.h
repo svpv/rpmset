@@ -231,7 +231,7 @@ static inline bool unpack29x3c15e3(const char *s, uint32_t *v, unsigned *e)
     x = _mm_or_si128(x, y);
     y = _mm_and_si128(x, mask);
     _mm_storeu_si128((void *) v, y);
-    _mm_slli_epi32(x, 1);
+    x = _mm_slli_epi32(x, 2);
     *e = _mm_movemask_ps(_mm_castsi128_ps(x));
     return true;
 }
