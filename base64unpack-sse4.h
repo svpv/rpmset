@@ -73,7 +73,7 @@ static inline bool base64unpack24(const char *s, __m128i *x)
     return true;
 }
 
-static inline unsigned pack9x32(const uint32_t v[32], char *s)
+static inline void pack9x32c48e0(const uint32_t *v, char *s, unsigned e)
 {
     // 9+9+6 | 3+9+9+3 | 6+9+9
     __m128i x0, x1, x2, x3, x4, x5, x6, x7;
@@ -98,21 +98,21 @@ static inline unsigned pack9x32(const uint32_t v[32], char *s)
     x5 = _mm_or_si128(x5, _mm_slli_epi32(x6, 6));
     x5 = _mm_or_si128(x5, _mm_slli_epi32(x7, 15));
     _mm_storeu_si128((void *) &s[32], base64pack24(x5));
-    return 48;
+    (void) e;
 }
 
-static inline unsigned unpack9x32(const char *s, uint32_t v[32])
+static inline bool unpack9x32c48e0(const char *s, uint32_t *v, unsigned *e)
 {
     __m128i x0, x1, x2, out;
     const __m128i mask = _mm_set1_epi32((1 << 9) - 1);
-    if (!base64unpack6(s +  0, &x0)) return 0;
+    if (!base64unpack6(s +  0, &x0)) return false;
     x0 = base64glue12(x0);
     out = _mm_and_si128(mask, x0);
     x0 = base64glue24(x0);
     _mm_storeu_si128((void *) &v[0], out);
     out = _mm_and_si128(mask, _mm_srli_epi32(x0, 9));
     _mm_storeu_si128((void *) &v[4], out);
-    if (!base64unpack6(s + 16, &x1)) return 0;
+    if (!base64unpack6(s + 16, &x1)) return false;
     out = _mm_and_si128(mask,
 	    _mm_or_si128(_mm_srli_epi32(x0, 18),
 			 _mm_slli_epi32(x1, 6)));
@@ -123,7 +123,7 @@ static inline unsigned unpack9x32(const char *s, uint32_t v[32])
     _mm_storeu_si128((void *) &v[12], out);
     out = _mm_and_si128(mask, _mm_srli_epi32(x1, 12));
     _mm_storeu_si128((void *) &v[16], out);
-    if (!base64unpack6(s + 32, &x2)) return 0;
+    if (!base64unpack6(s + 32, &x2)) return false;
     out = _mm_and_si128(mask,
 	    _mm_or_si128(_mm_srli_epi32(x1, 21),
 			 _mm_slli_epi32(x2, 3)));
@@ -134,10 +134,10 @@ static inline unsigned unpack9x32(const char *s, uint32_t v[32])
     _mm_storeu_si128((void *) &v[24], out);
     out = _mm_srli_epi32(x2, 15);
     _mm_storeu_si128((void *) &v[28], out);
-    return 48;
+    return (void) e, true;
 }
 
-static inline unsigned pack10x24(const uint32_t v[24], char *s)
+static inline void pack10x24c40e0(const uint32_t *v, char *s, unsigned e)
 {
     // 10+10+4 | 6+10+8 | 2+10
     __m128i x0, x1, x2, x3, x4, x5;
@@ -163,21 +163,21 @@ static inline unsigned pack10x24(const uint32_t v[24], char *s)
 	    -1, -1, -1, -1, -1, -1, -1, -1);
     x4 = _mm_shuffle_epi8(x4, pack16);
     _mm_storel_epi64((void *) &s[32], x4);
-    return 40;
+    (void) e;
 }
 
-static inline unsigned unpack10x24(const char *s, uint32_t v[24])
+static inline bool unpack10x24c40e0(const char *s, uint32_t *v, unsigned *e)
 {
     __m128i x0, x1, x2, out;
     const __m128i mask = _mm_set1_epi32((1 << 10) - 1);
-    if (!base64unpack6(s +  0, &x0)) return 0;
+    if (!base64unpack6(s +  0, &x0)) return false;
     x0 = base64glue12(x0);
     out = _mm_and_si128(mask, x0);
     x0 = base64glue24(x0);
     _mm_storeu_si128((void *) &v[0], out);
     out = _mm_and_si128(mask, _mm_srli_epi32(x0, 10));
     _mm_storeu_si128((void *) &v[4], out);
-    if (!base64unpack6(s + 16, &x1)) return 0;
+    if (!base64unpack6(s + 16, &x1)) return false;
     out = _mm_and_si128(mask,
 	    _mm_or_si128(_mm_srli_epi32(x0, 20),
 			 _mm_slli_epi32(x1, 4)));
@@ -186,7 +186,7 @@ static inline unsigned unpack10x24(const char *s, uint32_t v[24])
     _mm_storeu_si128((void *) &v[8], out);
     out = _mm_and_si128(mask, _mm_srli_epi32(x1, 6));
     _mm_storeu_si128((void *) &v[12], out);
-    if (!base64unpack6(s + 24, &x2)) return 0;
+    if (!base64unpack6(s + 24, &x2)) return false;
     const __m128i unpack16 = _mm_setr_epi8(
 	     8,  9, -1, -1, 10, 11, -1, -1,
 	    12, 13, -1, -1, 14, 15, -1, -1);
@@ -198,10 +198,10 @@ static inline unsigned unpack10x24(const char *s, uint32_t v[24])
     _mm_storeu_si128((void *) &v[16], out);
     out = _mm_srli_epi32(x2, 2);
     _mm_storeu_si128((void *) &v[20], out);
-    return 40;
+    return (void) e, true;
 }
 
-static inline unsigned pack29x3(const uint32_t v[3], char *s, unsigned e3)
+static inline void pack29x3c15e3(const uint32_t *v, char *s, unsigned e)
 {
     __m128i x, y;
     const __m128i mask = _mm_set1_epi32((1 << 29) - 1);
@@ -209,19 +209,18 @@ static inline unsigned pack29x3(const uint32_t v[3], char *s, unsigned e3)
 	    -1, -1, -1, -1, -1, -1, -1, -1,
 	    -1, -1, -1, -1,  3,  7, 11, -1);
     x = _mm_and_si128(mask, _mm_loadu_si128((const void *) v));
-    y = _mm_setr_epi32((e3 & 1) << 29, (e3 & 2) << 28, (e3 & 4) << 27, 0);
+    y = _mm_setr_epi32((e & 1) << 29, (e & 2) << 28, (e & 4) << 27, 0);
     x = _mm_or_si128(x, y);
     y = _mm_shuffle_epi8(x, hi6);
     x = base64unglue(x);
     x = _mm_blend_epi16(x, y, 128 + 64);
     _mm_storeu_si128((void *) s, base64pack6(x));
-    return 15;
 }
 
-static inline unsigned unpack29x3(const char *s, uint32_t v[3], unsigned *e3)
+static inline bool unpack29x3c15e3(const char *s, uint32_t *v, unsigned *e)
 {
     __m128i x, y;
-    if (!base64unpack6(s, &x)) return 0;
+    if (!base64unpack6(s, &x)) return false;
     const __m128i mask = _mm_set1_epi32((1 << 29) - 1);
     const __m128i hi6 = _mm_setr_epi8(
 	    -1, -1, -1, 12, -1, -1, -1, 13,
@@ -233,11 +232,11 @@ static inline unsigned unpack29x3(const char *s, uint32_t v[3], unsigned *e3)
     y = _mm_and_si128(x, mask);
     _mm_storeu_si128((void *) v, y);
     _mm_slli_epi32(x, 1);
-    *e3 = _mm_movemask_ps(_mm_castsi128_ps(x));
-    return 15;
+    *e = _mm_movemask_ps(_mm_castsi128_ps(x));
+    return true;
 }
 
-static inline unsigned pack30x3(const uint32_t v[3], char *s)
+static inline void pack30x3c15e0(const uint32_t *v, char *s, unsigned e)
 {
     __m128i x, y;
     const __m128i mask = _mm_set1_epi32((1 << 30) - 1);
@@ -249,13 +248,13 @@ static inline unsigned pack30x3(const uint32_t v[3], char *s)
     x = base64unglue(x);
     x = _mm_blend_epi16(x, y, 128 + 64);
     _mm_storeu_si128((void *) s, base64pack6(x));
-    return 15;
+    (void) e;
 }
 
-static inline unsigned unpack30x3(const char *s, uint32_t v[3])
+static inline bool unpack30x3c15e0(const char *s, uint32_t *v, unsigned *e)
 {
     __m128i x, y;
-    if (!base64unpack6(s, &x)) return 0;
+    if (!base64unpack6(s, &x)) return false;
     const __m128i hi6 = _mm_setr_epi8(
 	    -1, -1, -1, 12, -1, -1, -1, 13,
 	    -1, -1, -1, 14, -1, -1, -1, -1);
@@ -264,5 +263,5 @@ static inline unsigned unpack30x3(const char *s, uint32_t v[3])
     y = base64glue24(y);
     x = _mm_or_si128(x, y);
     _mm_storeu_si128((void *) v, x);
-    return 15;
+    return (void) e, true;
 }
