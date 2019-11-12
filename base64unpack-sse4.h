@@ -73,7 +73,7 @@ static inline bool base64unpack24(const char *s, __m128i *x)
     return true;
 }
 
-static inline void pack9x32c48e0(const uint32_t *v, char *s, unsigned e)
+static inline void pack9x32c48(const uint32_t *v, char *s, unsigned e)
 {
     // 9+9+6 | 3+9+9+3 | 6+9+9
     __m128i x0, x1, x2, x3, x4, x5, x6, x7;
@@ -101,7 +101,7 @@ static inline void pack9x32c48e0(const uint32_t *v, char *s, unsigned e)
     (void) e;
 }
 
-static inline bool unpack9x32c48e0(const char *s, uint32_t *v, unsigned *e)
+static inline bool unpack9x32c48(const char *s, uint32_t *v, unsigned *e)
 {
     __m128i x0, x1, x2, out;
     const __m128i mask = _mm_set1_epi32((1 << 9) - 1);
@@ -137,7 +137,7 @@ static inline bool unpack9x32c48e0(const char *s, uint32_t *v, unsigned *e)
     return (void) e, true;
 }
 
-static inline void pack10x24c40e0(const uint32_t *v, char *s, unsigned e)
+static inline void pack10x24c40(const uint32_t *v, char *s, unsigned e)
 {
     // 10+10+4 | 6+10+8 | 2+10
     __m128i x0, x1, x2, x3, x4, x5;
@@ -166,7 +166,7 @@ static inline void pack10x24c40e0(const uint32_t *v, char *s, unsigned e)
     (void) e;
 }
 
-static inline bool unpack10x24c40e0(const char *s, uint32_t *v, unsigned *e)
+static inline bool unpack10x24c40(const char *s, uint32_t *v, unsigned *e)
 {
     __m128i x0, x1, x2, out;
     const __m128i mask = _mm_set1_epi32((1 << 10) - 1);
@@ -203,7 +203,7 @@ static inline bool unpack10x24c40e0(const char *s, uint32_t *v, unsigned *e)
 
 #define Mask(k) ((1U << k) - 1)
 
-static inline void pack28x6c28e0(const uint32_t *v, char *s, unsigned e)
+static inline void pack28x6c28(const uint32_t *v, char *s, unsigned e)
 {
     uint32_t x[8];
     x[0]  =  v[0] & Mask(24);
@@ -226,7 +226,7 @@ static inline void pack28x6c28e0(const uint32_t *v, char *s, unsigned e)
     (void) e;
 }
 
-static inline bool unpack28x6c28e0(const char *s, uint32_t *v, unsigned *e)
+static inline bool unpack28x6c28(const char *s, uint32_t *v, unsigned *e)
 {
     __m128i x0, x1;
     if (!base64unpack24(s +  0, &x0)) return false;
@@ -283,7 +283,7 @@ static inline bool unpack29x3c15e3(const char *s, uint32_t *v, unsigned *e)
     return true;
 }
 
-static inline void pack30x3c15e0(const uint32_t *v, char *s, unsigned e)
+static inline void pack30x3c15(const uint32_t *v, char *s, unsigned e)
 {
     __m128i x, y;
     const __m128i mask = _mm_set1_epi32((1 << 30) - 1);
@@ -298,7 +298,7 @@ static inline void pack30x3c15e0(const uint32_t *v, char *s, unsigned e)
     (void) e;
 }
 
-static inline bool unpack30x3c15e0(const char *s, uint32_t *v, unsigned *e)
+static inline bool unpack30x3c15(const char *s, uint32_t *v, unsigned *e)
 {
     __m128i x, y;
     if (!base64unpack6(s, &x)) return false;
