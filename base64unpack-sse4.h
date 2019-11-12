@@ -84,6 +84,23 @@ static inline unsigned pack10x24(const uint32_t v[24], char *s)
     return 40;
 }
 
+static inline unsigned pack29x3(const uint32_t v[3], char *s, unsigned e3)
+{
+    __m128i x, y;
+    const __m128i mask = _mm_set1_epi32((1 << 29) - 1);
+    const __m128i hi6 = _mm_setr_epi8(
+	    -1, -1, -1, -1, -1, -1, -1, -1,
+	    -1, -1, -1, -1,  3,  7, 11, -1);
+    x = _mm_and_si128(mask, _mm_loadu_si128((const void *) v));
+    y = _mm_setr_epi32((e3 & 1) << 29, (e3 & 2) << 28, (e3 & 4) << 27, 0);
+    x = _mm_or_si128(x, y);
+    y = _mm_shuffle_epi8(x, hi6);
+    x = base64unglue(x);
+    x = _mm_blend_epi16(x, y, 128 + 64);
+    _mm_storeu_si128((void *) s, base64pack6(x));
+    return 15;
+}
+
 static inline unsigned pack30x3(const uint32_t v[3], char *s)
 {
     __m128i x, y;
