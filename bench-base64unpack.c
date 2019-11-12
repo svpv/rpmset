@@ -16,14 +16,16 @@ static inline uint32_t rand32(void)
     return ret;
 }
 
-static inline uint64_t wrap_loop16(
+#define LOOP 256
+
+static inline uint64_t wrap_LOOP(
 	bool (*unpack)(const char *s, uint32_t *v, unsigned *e),
 	const char *s, uint32_t *v, unsigned *e,
 	unsigned n, unsigned c)
 {
     uint64_t t = __rdtsc();
     asm volatile("" ::: "memory");
-    const char *s_end = s + 16*c;
+    const char *s_end = s + LOOP*c;
     do {
 	bool ok = unpack(s, v, e);
 	assert(ok);
@@ -33,66 +35,51 @@ static inline uint64_t wrap_loop16(
     return __rdtsc() - t;
 }
 
-uint64_t unpack9x32x16(const char *s, uint32_t *v, unsigned *e)
-{
-    return wrap_loop16(unpack9x32c48e0, s, v, e, 32, 48);
-}
+#define WRAP_LOOP(unpack, N, C) \
+uint64_t LOOP_##unpack(const char *s, uint32_t *v, unsigned *e) \
+{ return wrap_LOOP(unpack, s, v, e, N, C); }
 
-uint64_t unpack10x24x16(const char *s, uint32_t *v, unsigned *e)
-{
-    return wrap_loop16(unpack10x24c40e0, s, v, e, 24, 40);
-}
+WRAP_LOOP(unpack9x32c48e0,  32, 48)
+WRAP_LOOP(unpack10x24c40e0, 24, 40)
+WRAP_LOOP(unpack28x6c28e0,  6,  28)
+WRAP_LOOP(unpack29x3c15e3,  3,  15)
+WRAP_LOOP(unpack30x3c15e0,  3,  15)
 
-uint64_t unpack28x6x16(const char *s, uint32_t *v, unsigned *e)
-{
-    return wrap_loop16(unpack28x6c28e0, s, v, e, 6, 28);
-}
-
-uint64_t unpack29x3x16(const char *s, uint32_t *v, unsigned *e)
-{
-    return wrap_loop16(unpack29x3c15e3, s, v, e, 3, 15);
-}
-
-uint64_t unpack30x3x16(const char *s, uint32_t *v, unsigned *e)
-{
-    return wrap_loop16(unpack30x3c15e0, s, v, e, 3, 15);
-}
-
-void bench_loop16(const char *name,
+void bench_LOOP(const char *name,
 	void (*pack)(const uint32_t *v, char *s, unsigned e),
 	uint64_t (*unpack_loop16)(const char *s, uint32_t *v, unsigned *e),
 	unsigned m, unsigned n, unsigned c, unsigned em)
 {
-    uint32_t v[16*n+1], w[16*n+1];
-    for (unsigned i = 0; i < 16*n; i++)
+    uint32_t v[LOOP*n+1], w[LOOP*n+1];
+    for (unsigned i = 0; i < LOOP*n; i++)
 	v[i] = rand32();
-    unsigned ev[16], ew[16];
-    for (unsigned i = 0; i < 16; i++)
+    unsigned ev[LOOP], ew[LOOP];
+    for (unsigned i = 0; i < LOOP; i++)
 	ev[i] = rand32();
-    char s[16*c+1];
-    for (unsigned i = 0; i < 16; i++)
+    char s[LOOP*c+1];
+    for (unsigned i = 0; i < LOOP; i++)
 	pack(v + n * i, s + c * i, ev[i]);
     uint64_t t = 0;
-    for (unsigned i = 0; i < 64; i++)
+    for (unsigned i = 0; i < (1<<16); i++)
 	t += unpack_loop16(s, w, ew);
-    for (unsigned i = 0; i < 16*n; i++)
+    for (unsigned i = 0; i < LOOP*n; i++)
 	v[i] &= (1 << m) - 1;
-    assert(memcmp(v, w, 16*n * 4) == 0);
+    assert(memcmp(v, w, LOOP*n * 4) == 0);
     if (em) {
 	for (unsigned i = 0; i < 16; i++)
 	    ev[i] &= (1 << em) - 1;
 	assert(memcmp(ev, ew, 16 * 4) == 0);
     }
     fprintf(stderr, "%s: %.2f cycles per integer\n",
-	    name, (double) t / (16*n) / 64);
+	    name, (double) t / (LOOP*n) / (1<<16));
 }
 
 int main()
 {
-    bench_loop16("unpack9x32",  pack9x32c48e0,  unpack9x32x16,   9, 32, 48, 0);
-    bench_loop16("unpack10x24", pack10x24c40e0, unpack10x24x16, 10, 24, 40, 0);
-    bench_loop16("unpack28x6",  pack28x6c28e0,  unpack28x6x16,  28,  6, 28, 0);
-    bench_loop16("unpack29x3",  pack29x3c15e3,  unpack29x3x16,  29,  3, 15, 3);
-    bench_loop16("unpack30x3",  pack30x3c15e0,  unpack30x3x16,  30,  3, 15, 0);
+    bench_LOOP("unpack9x32",  pack9x32c48e0,  LOOP_unpack9x32c48e0,   9, 32, 48, 0);
+    bench_LOOP("unpack10x24", pack10x24c40e0, LOOP_unpack10x24c40e0, 10, 24, 40, 0);
+    bench_LOOP("unpack28x6",  pack28x6c28e0,  LOOP_unpack28x6c28e0,  28,  6, 28, 0);
+    bench_LOOP("unpack29x3",  pack29x3c15e3,  LOOP_unpack29x3c15e3,  29,  3, 15, 3);
+    bench_LOOP("unpack30x3",  pack30x3c15e0,  LOOP_unpack30x3c15e0,  30,  3, 15, 0);
     return 0;
 }
