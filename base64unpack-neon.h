@@ -2,7 +2,7 @@
 #include <stdbool.h>
 #include <arm_neon.h>
 
-static inline uint8x16_t base64pack6(uint8x16_t x)
+static inline uint8x16_t pack6(uint8x16_t x)
 {
     const uint8x16_t lut = {
 	    65, 71, -4, -4,  -4,  -4, -4, -4,
@@ -13,7 +13,7 @@ static inline uint8x16_t base64pack6(uint8x16_t x)
     return vaddq_u8(x, vqtbl1q_u8(lut, y));
 }
 
-static inline bool base64unpack6(const char *s, uint8x16_t *x)
+static inline bool unpack6(const char *s, uint8x16_t *x)
 {
     *x = vld1q_u8((const uint8_t *) s);
     const uint8x16_t lut_lo = {
