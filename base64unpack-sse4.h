@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <smmintrin.h>
+#include "base64.h"
 
 static inline __m128i base64pack6(__m128i x)
 {
@@ -235,6 +236,42 @@ static inline bool unpack27x3c14e3(const char *s, uint32_t *v, unsigned *e)
     x = _mm_and_si128(x, mask);
     _mm_storeu_si128((void *) v, x);
     return true;
+}
+
+static inline void pack27x4c18(const uint32_t *v, char *s, unsigned e)
+{
+    uint32_t w[4];
+    w[0]  =  v[0] & Mask(24);
+    w[1]  = (v[0] & Mask(27)) >> 24;
+    w[1] |= (v[1] & Mask(21)) << 3;
+    w[2]  = (v[1] & Mask(27)) >> 21;
+    w[2] |= (v[2] & Mask(18)) << 6;
+    w[3]  = (v[2] & Mask(27)) >> 18;
+    w[3] |= (v[3] & Mask(27)) >> 12 << 9;
+    __m128i x = _mm_loadu_si128((void *) w);
+    _mm_storeu_si128((void *) s, base64pack24(x));
+    s[16] = base64[(v[3] & Mask(6))];
+    s[17] = base64[(v[3] & Mask(12)) >> 6];
+    (void) e;
+}
+
+static inline bool unpack27x4c18(const char *s, uint32_t *v, unsigned *e)
+{
+    __m128i x, y;
+    if (!base64unpack24(s, &x)) return false;
+    const __m128i shuf = _mm_setr_epi8(
+	    0, 1,  2,  4,  4,  5,  6,  8,
+	    8, 9, 10, 12, 13, 14, -1, -1);
+    x = _mm_shuffle_epi8(x, shuf);
+    y = _mm_srli_epi64(x, 1);
+    x = _mm_blend_epi16(x, y, 64 + 32 + 16);
+    x = _mm_mullo_epi32(x, _mm_setr_epi32(32, 4, 1, 1 << 17));
+    x = _mm_srli_epi32(x, 5);
+    _mm_storeu_si128((void *) v, x);
+    int lo = base64dec2(s + 16);
+    if (lo < 0) return false;
+    v[3] |= lo;
+    return (void) e, true;
 }
 
 static inline void pack28x3c14(const uint32_t *v, char *s, unsigned e)
