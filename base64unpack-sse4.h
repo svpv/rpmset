@@ -203,6 +203,40 @@ static inline bool unpack10x24c40(const char *s, uint32_t *v, unsigned *e)
 
 #define Mask(k) ((1U << k) - 1)
 
+static inline void pack27x3c14e3(const uint32_t *v, char *s, unsigned e)
+{
+    uint32_t w[4];
+    w[0]  =  v[0] & Mask(24);
+    w[1]  = (v[0] & Mask(27)) >> 24;
+    w[1] |= (v[1] & Mask(20)) << 4;
+    w[2]  = (v[1] & Mask(27)) >> 20;
+    w[2] |= (v[2] & Mask(16)) << 8;
+    w[3]  = (v[2] & Mask(27)) >> 16;
+    w[1] |= (e & 1) << 3;
+    w[2] |= (e & 2) << 6;
+    w[3] |= (e & 4) << 9;
+    __m128i x = _mm_loadu_si128((void *) w);
+    _mm_storeu_si128((void *) s, base64pack24(x));
+}
+
+static inline bool unpack27x3c14e3(const char *s, uint32_t *v, unsigned *e)
+{
+    __m128i x, y;
+    if (!base64unpack24(s - 2, &x)) return false;
+    const __m128i mask = _mm_set1_epi32((1 << 27) - 1);
+    const __m128i shuf = _mm_setr_epi8(
+	     1,  2,  4,  5,  6,  8,  9, 10,
+	    10, 12, 13, 14, -1, -1, -1, -1);
+    x = _mm_shuffle_epi8(x, shuf);
+    y = _mm_slli_epi32(x, 4);
+    x = _mm_blend_epi16(x, y, 8 + 4);
+    *e = _mm_movemask_ps(_mm_castsi128_ps(x));
+    x = _mm_srli_epi32(x, 4);
+    x = _mm_and_si128(x, mask);
+    _mm_storeu_si128((void *) v, x);
+    return true;
+}
+
 static inline void pack28x3c14(const uint32_t *v, char *s, unsigned e)
 {
     uint32_t w[4];
