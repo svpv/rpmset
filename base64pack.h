@@ -25,26 +25,6 @@ static inline void pack28x3c14(const uint32_t *v, char *s, unsigned e)
     (void) e;
 }
 
-static inline bool unpack28x3c14(const char *s, uint32_t *v, unsigned *e)
-{
-    int32_t x;
-    x = base64dec2(s + 0) | base64dec2(s + 2) << 12;
-    if (x < 0) return false;
-    v[0]  = x;
-    x = base64dec2(s + 4) | base64dec2(s + 6) << 12;
-    if (x < 0) return false;
-    v[0] |= (x & Mask(4)) << 24;
-    v[1]  = (x >> 4);
-    x = base64dec2(s + 8) | base64dec2(s + 10) << 12;
-    if (x < 0) return false;
-    v[1] |= (x & Mask(8)) << 20;
-    v[2]  = (x >> 8);
-    x = base64dec2(s + 12);
-    if (x < 0) return false;
-    v[2] |= (x << 16);
-    return (void) e, true;
-}
-
 static inline void pack29x3c15e3(const uint32_t *v, char *s, unsigned e)
 {
     s[ 0] = base64[ v[0] & Mask(6)];
@@ -62,24 +42,6 @@ static inline void pack29x3c15e3(const uint32_t *v, char *s, unsigned e)
     s[12] = base64[(v[0] & Mask(29)) >> 24 | (e & 1) << 5];
     s[13] = base64[(v[1] & Mask(29)) >> 24 | (e & 2) << 4];
     s[14] = base64[(v[2] & Mask(29)) >> 24 | (e & 4) << 3];
-}
-
-static inline bool unpack29x3c15e3(const char *s, uint32_t *v, unsigned *e)
-{
-    int32_t e0, e1, e2;
-    int32_t x0, x1, x2;
-    uint32_t mask = (1 << 29) - 1;
-    x0 = base64dec2(s + 0) | base64dec2(s + 2) << 12 | (e0 = base64dec1(s + 12)) << 24;
-    if (x0 < 0) return false;
-    v[0] = x0 & mask;
-    x1 = base64dec2(s + 4) | base64dec2(s + 6) << 12 | (e1 = base64dec1shl6(s + 13)) << 18;
-    if (x1 < 0) return false;
-    v[1] = x1 & mask;
-    x2 = base64dec2(s + 8) | base64dec2(s + 10) << 12 | (e2 = (base64dec1(s + 14) << 24));
-    if (x2 < 0) return false;
-    v[2] = x2 & mask;
-    *e = ((e0 | e1 | e2) & 0xa0100823) * 0x10b3014 >> 29;
-    return true;
 }
 
 static inline void pack30x3c15(const uint32_t *v, char *s, unsigned e)
@@ -100,19 +62,4 @@ static inline void pack30x3c15(const uint32_t *v, char *s, unsigned e)
     s[13] = base64[(v[1] & Mask(30)) >> 24];
     s[14] = base64[(v[2] & Mask(30)) >> 24];
     (void) e;
-}
-
-static inline bool unpack30x3c15(const char *s, uint32_t *v, unsigned *e)
-{
-    int32_t x;
-    x = base64dec2(s + 0) | base64dec2(s + 2) << 12 | base64dec1(s + 12) << 24;
-    if (x < 0) return false;
-    v[0] = x;
-    x = base64dec2(s + 4) | base64dec2(s + 6) << 12 | base64dec1(s + 13) << 24;
-    if (x < 0) return false;
-    v[1] = x;
-    x = base64dec2(s + 8) | base64dec2(s + 10) << 12 | base64dec1(s + 14) << 24;
-    if (x < 0) return false;
-    v[2] = x;
-    return (void) e, true;
 }

@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <assert.h>
+#include "base64pack.h"
 
 #if defined(__i386__) || defined(__x86_64__)
 #include <x86intrin.h>
@@ -51,8 +52,6 @@ static inline uint64_t wrap_LOOP(
 uint64_t LOOP_##unpack(const char *s, uint32_t *v, unsigned *e) \
 { return wrap_LOOP(unpack, s, v, e, N, C); }
 
-WRAP_LOOP(unpack9x32c48,   32, 48)
-WRAP_LOOP(unpack10x24c40,  24, 40)
 WRAP_LOOP(unpack27x3c14e3, 3,  14)
 WRAP_LOOP(unpack27x4c18,   4,  18)
 WRAP_LOOP(unpack28x3c14,   3,  14)
@@ -91,8 +90,6 @@ void bench_LOOP(const char *name,
 
 int main()
 {
-    bench_LOOP("unpack9x32",  pack9x32c48,   LOOP_unpack9x32c48,    9, 32, 48, 0);
-    bench_LOOP("unpack10x24", pack10x24c40,  LOOP_unpack10x24c40,  10, 24, 40, 0);
     bench_LOOP("unpack27x3",  pack27x3c14e3, LOOP_unpack27x3c14e3, 27,  3, 14, 3);
     bench_LOOP("unpack27x4",  pack27x4c18,   LOOP_unpack27x4c18,   27,  4, 18, 0);
     bench_LOOP("unpack28x3",  pack28x3c14,   LOOP_unpack28x3c14,   28,  3, 14, 0);
