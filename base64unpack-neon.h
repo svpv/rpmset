@@ -35,3 +35,48 @@ static inline bool unpack6(const char *s, uint8x16_t *x)
     *x = vaddq_u8(*x, roll);
     return !err;
 }
+
+static inline uint8x16_t unglue(uint32x4_t x)
+{
+    uint32x4_t x0 =             vandq_u32(x, vdupq_n_u32(63));
+    uint32x4_t x1 = vshlq_n_u32(vandq_u32(x, vdupq_n_u32(63<<6)), 2);
+    uint32x4_t x2 = vshlq_n_u32(vandq_u32(x, vdupq_n_u32(63<<12)), 4);
+    uint32x4_t x3 = vshlq_n_u32(vandq_u32(x, vdupq_n_u32(63<<18)), 6);
+    uint32x4_t y = vorrq_u32(vorrq_u32(x0, x1), vorrq_u32(x2, x3));
+    return vreinterpretq_u8_u32(y);
+}
+
+static inline uint8x16_t pack24(uint32x4_t x)
+{
+    uint8x16_t y = unglue(x);
+    return pack6(y);
+}
+
+static inline uint16x8_t glue12(uint8x16_t x)
+{
+    uint16x8_t y, z;
+    z = vreinterpretq_u16_u8(x);
+    y = vandq_u16(z, vdupq_n_u16(63<<8));
+    z = vandq_u16(z, vdupq_n_u16(63));
+    y = vshrq_n_u16(y, 2);
+    return vorrq_u16(y, z);
+}
+
+static inline uint32x4_t glue24(uint16x8_t x)
+{
+    uint32x4_t y, z;
+    z = vreinterpretq_u32_u16(x);
+    y = vandq_u32(z, vdupq_n_u32(4095<<16));
+    z = vandq_u32(z, vdupq_n_u32(4095));
+    y = vshrq_n_u32(y, 4);
+    return vorrq_u32(y, z);
+}
+
+static inline bool unpack24(const char *s, uint32x4_t *x)
+{
+    uint8x16_t y;
+    if (!unpack6(s, &y))
+	return false;
+    *x = glue24(glue12(y));
+    return true;
+}
