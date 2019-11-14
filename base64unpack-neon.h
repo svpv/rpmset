@@ -80,3 +80,34 @@ static inline bool unpack24(const char *s, uint32x4_t *x)
     *x = glue24(glue12(y));
     return true;
 }
+
+static inline void pack30x3c15(const uint32_t *v, char *s, unsigned e)
+{
+    const uint32x4_t mask = vdupq_n_u32((1 << 30) - 1);
+    const uint8x16_t hi6 = {
+	    -1, -1, -1, -1, -1, -1, -1, -1,
+	    -1, -1, -1, -1,  3,  7, 11, -1 };
+    uint32x4_t x = vandq_u32(mask, vld1q_u32(v));
+    uint8x16_t y = vqtbl1q_u8(vreinterpretq_u8_u32(x), hi6);
+    const uint32x4_t keep3 = { -1, -1, -1, 0 };
+    x = vandq_u32(x, keep3);
+    uint8x16_t z = unglue(x);
+    z = vorrq_u8(z, y);
+    vst1q_u8((void *) s, pack6(z));
+    (void) e;
+}
+
+static inline bool unpack30x3c15(const char *s, uint32_t *v, unsigned *e)
+{
+    uint8x16_t x;
+    if (!unpack6(s, &x)) return false;
+    const uint8x16_t hi6 = {
+	    -1, -1, -1, 12, -1, -1, -1, 13,
+	    -1, -1, -1, 14, -1, -1, -1, -1 };
+    uint16x8_t y = glue12(x);
+    x = vqtbl1q_u8(x, hi6);
+    uint32x4_t z = glue24(y);
+    z = vorrq_u32(z, vreinterpretq_u32_u8(x));
+    vst1q_u32(v, z);
+    return (void) e, true;
+}
