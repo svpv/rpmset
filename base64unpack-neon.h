@@ -76,6 +76,23 @@ static inline bool unpack24(const char *s, uint32x4_t *x)
     return ok;
 }
 
+static inline bool unpack29x3c15e3(const char *s, uint32_t *v, unsigned *e)
+{
+    uint8x16_t x;
+    bool ok = unpack6(s, &x);
+    const uint32x4_t mask = vdupq_n_u32((1 << 29) - 1);
+    const uint8x16_t hi6 = {
+	    -1, -1, -1, 12, -1, -1, -1, 13,
+	    -1, -1, -1, 14, -1, -1, -1, -1 };
+    uint16x8_t y = glue12(x);
+    x = vqtbl1q_u8(x, hi6);
+    uint32x4_t z = glue24(y);
+    z = vorrq_u32(z, vreinterpretq_u32_u8(x));
+    vst1q_u32(v, vandq_u32(z, mask));
+    *e = (v[3] & 0x20820) * 0x1084000 >> 29;
+    return ok;
+}
+
 static inline void pack30x3c15(const uint32_t *v, char *s, unsigned e)
 {
     const uint32x4_t mask = vdupq_n_u32((1 << 30) - 1);
