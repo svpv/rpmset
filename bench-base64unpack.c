@@ -3,8 +3,20 @@
 #include <stdint.h>
 #include <string.h>
 #include <assert.h>
+
+#if defined(__i386__) || defined(__x86_64__)
 #include <x86intrin.h>
-#include "base64pack-sse4.h"
+#define rdtsc() __rdtsc()
+#elif defined(__aarch64__)
+static inline uint64_t rdtsc(void)
+{
+    uint64_t t;
+    asm volatile("mrs %0, cntvct_el0" : "=r"(t));
+    return t;
+}
+#else
+#error "rdtsc not supported"
+#endif
 
 // Lehmer random number generator
 static inline uint32_t rand32(void)
@@ -23,7 +35,7 @@ static inline uint64_t wrap_LOOP(
 	const char *s, uint32_t *v, unsigned *e,
 	unsigned n, unsigned c)
 {
-    uint64_t t = __rdtsc();
+    uint64_t t = rdtsc();
     asm volatile("" ::: "memory");
     const char *s_end = s + LOOP*c;
     do {
@@ -32,7 +44,7 @@ static inline uint64_t wrap_LOOP(
 	v += n, s += c, e++;
     } while (s < s_end);
     asm volatile("" ::: "memory");
-    return __rdtsc() - t;
+    return rdtsc() - t;
 }
 
 #define WRAP_LOOP(unpack, N, C) \
