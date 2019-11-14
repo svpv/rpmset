@@ -66,7 +66,7 @@ static inline void pack29x3c15e3(const uint32_t *v, char *s, unsigned e)
 
 static inline bool unpack29x3c15e3(const char *s, uint32_t *v, unsigned *e)
 {
-    int e0, e1, e2;
+    int32_t e0, e1, e2;
     int32_t x0, x1, x2;
     uint32_t mask = (1 << 29) - 1;
     x0 = base64dec2(s + 0) | base64dec2(s + 2) << 12 | (e0 = base64dec1(s + 12)) << 24;
