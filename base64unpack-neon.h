@@ -55,21 +55,17 @@ static inline uint8x16_t pack24(uint32x4_t x)
 static inline uint16x8_t glue12(uint8x16_t x)
 {
     uint16x8_t y, z;
-    z = vreinterpretq_u16_u8(x);
-    y = vandq_u16(z, vdupq_n_u16(63<<8));
-    z = vandq_u16(z, vdupq_n_u16(63));
-    y = vshrq_n_u16(y, 2);
-    return vorrq_u16(y, z);
+    y = vreinterpretq_u16_u8(x);
+    z = vshrq_n_u16(y, 8);
+    return vsliq_n_u16(y, z, 6);
 }
 
 static inline uint32x4_t glue24(uint16x8_t x)
 {
     uint32x4_t y, z;
-    z = vreinterpretq_u32_u16(x);
-    y = vandq_u32(z, vdupq_n_u32(4095<<16));
-    z = vandq_u32(z, vdupq_n_u32(4095));
-    y = vshrq_n_u32(y, 4);
-    return vorrq_u32(y, z);
+    y = vreinterpretq_u32_u16(x);
+    z = vshrq_n_u32(y, 16);
+    return vsliq_n_u32(y, z, 12);
 }
 
 static inline bool unpack24(const char *s, uint32x4_t *x)
