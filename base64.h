@@ -13,6 +13,12 @@ static inline int base64dec1(const char *s)
     return base64d0[c];
 }
 
+static inline int base64dec1shl6(const char *s)
+{
+    unsigned char c = *s;
+    return base64d1[c];
+}
+
 static inline int base64dec2(const char *s)
 {
     unsigned char c0 = s[0], c1 = s[1];
