@@ -75,10 +75,9 @@ static inline uint32x4_t glue24(uint16x8_t x)
 static inline bool unpack24(const char *s, uint32x4_t *x)
 {
     uint8x16_t y;
-    if (!unpack6(s, &y))
-	return false;
+    bool ok = unpack6(s, &y);
     *x = glue24(glue12(y));
-    return true;
+    return ok;
 }
 
 static inline void pack30x3c15(const uint32_t *v, char *s, unsigned e)
@@ -100,7 +99,7 @@ static inline void pack30x3c15(const uint32_t *v, char *s, unsigned e)
 static inline bool unpack30x3c15(const char *s, uint32_t *v, unsigned *e)
 {
     uint8x16_t x;
-    if (!unpack6(s, &x)) return false;
+    bool ok = unpack6(s, &x);
     const uint8x16_t hi6 = {
 	    -1, -1, -1, 12, -1, -1, -1, 13,
 	    -1, -1, -1, 14, -1, -1, -1, -1 };
@@ -109,5 +108,5 @@ static inline bool unpack30x3c15(const char *s, uint32_t *v, unsigned *e)
     uint32x4_t z = glue24(y);
     z = vorrq_u32(z, vreinterpretq_u32_u8(x));
     vst1q_u32(v, z);
-    return (void) e, true;
+    return (void) e, ok;
 }
