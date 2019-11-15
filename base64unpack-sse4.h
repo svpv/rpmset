@@ -146,11 +146,11 @@ static inline bool unpack27x4c18(const char *s, uint32_t *v, unsigned *e)
 	    8, 9, 10, 12, 13, 14, -1, -1);
     x = _mm_shuffle_epi8(x, shuf);
     y = _mm_srli_epi64(x, 1);
-    x = _mm_blend_epi16(x, y, 64 + 32 + 16);
+    x = _mm_blend_epi16(x, y, 0xf0);
     x = _mm_mullo_epi32(x, _mm_setr_epi32(32, 4, 1, 1 << 17));
     x = _mm_srli_epi32(x, 5);
     _mm_storeu_si128((void *) v, x);
-    int lo = base64dec2(s + 16);
+    int32_t lo = base64dec2(s + 16);
     if (lo < 0) return false;
     v[3] |= lo;
     return (void) e, true;
