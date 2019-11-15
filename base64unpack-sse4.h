@@ -171,7 +171,7 @@ static inline bool unpack28x3c14(const char *s, uint32_t *v, unsigned *e)
     return (void) e, true;
 }
 
-static inline bool unpack29x3c15e3(const char *s, uint32_t *v, unsigned *e)
+static inline bool unpack29x3c15e3o1(const char *s, uint32_t *v, unsigned *e)
 {
     __m128i x, y, z;
     if (!unpack6(s, &x)) return false;
@@ -190,7 +190,7 @@ static inline bool unpack29x3c15e3(const char *s, uint32_t *v, unsigned *e)
     return true;
 }
 
-static inline bool unpack30x3c15(const char *s, uint32_t *v, unsigned *e)
+static inline bool unpack30x3c15o1(const char *s, uint32_t *v, unsigned *e)
 {
     __m128i x, y;
     if (!unpack6(s, &x)) return false;

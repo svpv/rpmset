@@ -52,16 +52,16 @@ static inline uint64_t wrap_LOOP(
 uint64_t LOOP_##unpack(const char *s, uint32_t *v, unsigned *e) \
 { return wrap_LOOP(unpack, s, v, e, N, C); }
 
-WRAP_LOOP(unpack27x3c14e3, 3,  14)
-WRAP_LOOP(unpack27x4c18,   4,  18)
-WRAP_LOOP(unpack28x3c14,   3,  14)
-WRAP_LOOP(unpack29x3c15e3, 3,  15)
-WRAP_LOOP(unpack30x3c15,   3,  15)
+WRAP_LOOP(unpack27x3c14e3,   3,  14)
+WRAP_LOOP(unpack27x4c18,     4,  18)
+WRAP_LOOP(unpack28x3c14,     3,  14)
+WRAP_LOOP(unpack29x3c15e3o1, 3,  15)
+WRAP_LOOP(unpack30x3c15o1,   3,  15)
 
 void bench_LOOP(const char *name,
 	void (*pack)(const uint32_t *v, char *s, unsigned e),
 	uint64_t (*unpack_loop16)(const char *s, uint32_t *v, unsigned *e),
-	unsigned m, unsigned n, unsigned c, unsigned em)
+	unsigned m, unsigned n, unsigned c, unsigned em, unsigned o)
 {
     uint32_t v[LOOP*n+1], w[LOOP*n+1];
     for (unsigned i = 0; i < LOOP*n; i++)
@@ -69,10 +69,11 @@ void bench_LOOP(const char *name,
     unsigned ev[LOOP], ew[LOOP];
     for (unsigned i = 0; i < LOOP; i++)
 	ev[i] = rand32();
-    char s_[2+LOOP*c+1], *s = s_ + 2;
+    char s_[2+LOOP*c+2], *s = s_ + 2;
     s_[0] = 'b', s_[1] = 'M';
     for (unsigned i = 0; i < LOOP; i++)
 	pack(v + n * i, s + c * i, ev[i]);
+    s[LOOP*c] = 'x', s[LOOP*c+o] = '\0';
     uint64_t t = 0;
     for (unsigned i = 0; i < (1<<16); i++)
 	t += unpack_loop16(s, w, ew);
@@ -90,10 +91,10 @@ void bench_LOOP(const char *name,
 
 int main()
 {
-    bench_LOOP("unpack27x3",  pack27x3c14e3, LOOP_unpack27x3c14e3, 27,  3, 14, 3);
-    bench_LOOP("unpack27x4",  pack27x4c18,   LOOP_unpack27x4c18,   27,  4, 18, 0);
-    bench_LOOP("unpack28x3",  pack28x3c14,   LOOP_unpack28x3c14,   28,  3, 14, 0);
-    bench_LOOP("unpack29x3",  pack29x3c15e3, LOOP_unpack29x3c15e3, 29,  3, 15, 3);
-    bench_LOOP("unpack30x3",  pack30x3c15,   LOOP_unpack30x3c15,   30,  3, 15, 0);
+    bench_LOOP("unpack27x3",  pack27x3c14e3, LOOP_unpack27x3c14e3,   27,  3, 14, 3, 0);
+    bench_LOOP("unpack27x4",  pack27x4c18,   LOOP_unpack27x4c18,     27,  4, 18, 0, 0);
+    bench_LOOP("unpack28x3",  pack28x3c14,   LOOP_unpack28x3c14,     28,  3, 14, 0, 0);
+    bench_LOOP("unpack29x3",  pack29x3c15e3, LOOP_unpack29x3c15e3o1, 29,  3, 15, 3, 1);
+    bench_LOOP("unpack30x3",  pack30x3c15,   LOOP_unpack30x3c15o1,   30,  3, 15, 0, 1);
     return 0;
 }

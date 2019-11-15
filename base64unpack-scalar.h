@@ -70,7 +70,7 @@ static inline bool unpack28x3c14(const char *s, uint32_t *v, unsigned *e)
     return (void) e, true;
 }
 
-static inline bool unpack29x3c15e3(const char *s, uint32_t *v, unsigned *e)
+static inline bool unpack29x3c15e3o1(const char *s, uint32_t *v, unsigned *e)
 {
     int32_t x0, x1, x2;
     uint32_t e0, e1, e2;
@@ -88,7 +88,7 @@ static inline bool unpack29x3c15e3(const char *s, uint32_t *v, unsigned *e)
     return true;
 }
 
-static inline bool unpack30x3c15(const char *s, uint32_t *v, unsigned *e)
+static inline bool unpack30x3c15o1(const char *s, uint32_t *v, unsigned *e)
 {
     int32_t x;
     x = base64dec2(s + 0) | base64dec2(s + 2) << 12 | base64dec1(s + 12) << 24;
