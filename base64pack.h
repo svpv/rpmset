@@ -4,6 +4,25 @@
 
 #define Mask(k) ((1U << k) - 1)
 
+static inline void pack25x3c13e3(const uint32_t *v, char *s, unsigned e)
+{
+    s[ 0] = base64[ v[0] & Mask( 6)];
+    s[ 1] = base64[(v[0] & Mask(12)) >>  6];
+    s[ 2] = base64[(v[0] & Mask(18)) >> 12];
+    s[ 3] = base64[(v[0] & Mask(24)) >> 18];
+    s[ 4] = base64[(v[0] & Mask(25)) >> 24 | (e & 1) << 1 |
+		   (v[1] & Mask( 4)) <<  2];
+    s[ 5] = base64[(v[1] & Mask(10)) >>  4];
+    s[ 6] = base64[(v[1] & Mask(16)) >> 10];
+    s[ 7] = base64[(v[1] & Mask(22)) >> 16];
+    s[ 8] = base64[(v[1] & Mask(25)) >> 22 | (e & 2) << 2 |
+		   (v[2] & Mask( 2)) <<  4];
+    s[ 9] = base64[(v[2] & Mask( 8)) >>  2];
+    s[10] = base64[(v[2] & Mask(14)) >>  8];
+    s[11] = base64[(v[2] & Mask(20)) >> 14];
+    s[12] = base64[(v[2] & Mask(25)) >> 20 | (e & 4) << 3];
+}
+
 static inline void pack26x3c13(const uint32_t *v, char *s, unsigned e)
 {
     // 66662|46664|26666

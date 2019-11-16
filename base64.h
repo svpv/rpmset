@@ -6,6 +6,7 @@
 extern const char base64[64];
 extern const int8_t base64d0[256];
 extern const int16_t base64d1[256];
+extern const int32_t base64d2[256];
 
 // These routines deliberately return uint32_t, so that left shifts do not
 // trigger undefined behavior.  To check the result, assign to int32_t:
@@ -23,6 +24,12 @@ static inline uint32_t base64dec1shl6(const char *s)
 {
     unsigned char c = *s;
     return base64d1[c];
+}
+
+static inline uint32_t base64dec1shl12(const char *s)
+{
+    unsigned char c = *s;
+    return base64d2[c];
 }
 
 static inline uint32_t base64dec2(const char *s)
