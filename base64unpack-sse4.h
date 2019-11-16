@@ -48,6 +48,8 @@ static inline bool unpack24(const char *s, __m128i *x)
     return true;
 }
 
+#define Mask(k) ((1U << k) - 1)
+
 static inline bool unpack9x32c48(const char *s, uint32_t *v, unsigned *e)
 {
     __m128i x0, x1, x2, out;
@@ -131,6 +133,24 @@ static inline bool unpack26x3c13o1(const char *s, uint32_t *v, unsigned *e)
     x = _mm_srli_epi32(x, 6);
     _mm_storeu_si128((void *) v, x);
     return (void) e, true;
+}
+
+static inline bool unpack26x4c18e4(const char *s, uint32_t *v, unsigned *e)
+{
+    __m128i x;
+    if (!unpack24(s, &x)) return false;
+    const __m128i shuf = _mm_setr_epi8(
+	    0, 1,  2,  4,  4,  5,  6,  8,
+	    8, 9, 10, 12, 12, 13, 14, -1);
+    x = _mm_shuffle_epi8(x, shuf);
+    x = _mm_mullo_epi32(x, _mm_setr_epi32(64, 16, 4, 1));
+    x = _mm_srli_epi32(x, 6);
+    _mm_storeu_si128((void *) v, x);
+    int32_t hi = base64dec2(s + 16);
+    if (hi < 0) return false;
+    v[3] |= (hi & Mask(8)) << 18;
+    *e = (hi >> 8);
+    return true;
 }
 
 static inline bool unpack27x3c14e3(const char *s, uint32_t *v, unsigned *e)
