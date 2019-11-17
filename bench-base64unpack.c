@@ -72,10 +72,10 @@ void bench_LOOP(const char *name,
 {
     uint32_t v[LOOP*n+1], w[LOOP*n+1];
     for (unsigned i = 0; i < LOOP*n; i++)
-	v[i] = rand32();
+	v[i] = rand32(), w[i] = rand32();
     unsigned ev[LOOP], ew[LOOP];
     for (unsigned i = 0; i < LOOP; i++)
-	ev[i] = rand32();
+	ev[i] = rand32(), ew[i] = rand32();
     char s_[2+LOOP*c+2], *s = s_ + 2;
     s_[0] = 'b', s_[1] = 'M';
     for (unsigned i = 0; i < LOOP; i++)

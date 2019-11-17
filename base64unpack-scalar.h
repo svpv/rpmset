@@ -13,7 +13,7 @@ static inline bool unpack22x4c15e2o1(const char *s, uint32_t *v, unsigned *e)
     v[0]  = (x >> 2);
     x = base64dec2(s + 4) | base64dec2(s + 6) << 12;
     if (x < 0) return false;
-    v[1] |= (x & Mask(22));
+    v[1]  = (x & Mask(22));
     v[2]  = (x >> 22);
     x = base64dec2(s + 8) | base64dec2(s + 10) << 12;
     if (x < 0) return false;
