@@ -138,6 +138,24 @@ static inline bool unpack25x3c13e3o1(const char *s, uint32_t *v, unsigned *e)
     return true;
 }
 
+static inline bool unpack25x4c17e2(const char *s, uint32_t *v, unsigned *e)
+{
+    __m128i x;
+    if (!unpack24(s, &x)) return false;
+    const __m128i shuf = _mm_setr_epi8(
+	    0, 1,  2,  4,  4,  5,  6,  8,
+	    8, 9, 10, 12, 12, 13, 14, -1);
+    x = _mm_shuffle_epi8(x, shuf);
+    x = _mm_mullo_epi32(x, _mm_setr_epi32(128, 64, 32, 16));
+    x = _mm_srli_epi32(x, 7);
+    _mm_storeu_si128((void *) v, x);
+    int32_t hi = base64dec1(s + 16);
+    if (hi < 0) return false;
+    v[3] |= (hi & Mask(4)) << 21;
+    *e = (hi >> 4);
+    return true;
+}
+
 static inline bool unpack26x3c13o1(const char *s, uint32_t *v, unsigned *e)
 {
     __m128i x;

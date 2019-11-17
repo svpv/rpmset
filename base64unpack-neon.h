@@ -73,6 +73,30 @@ static inline bool unpack25x3c13e3o1(const char *s, uint32_t *v, unsigned *e)
     return ok;
 }
 
+static inline bool unpack25x4c17e2(const char *s, uint32_t *v, unsigned *e)
+{
+    uint32x4_t x;
+    bool ok = unpack24(s, &x);
+    const uint8x16_t shuf = {
+	    0, 1,  2,  4,  4,  5,  6,  8,
+	    8, 9, 10, 12, 12, 13, 14, -1 };
+    x = vreinterpretq_u32_u8(vqtbl1q_u8(vreinterpretq_u8_u32(x), shuf));
+#ifdef SLOW_VSHIFT
+    const uint32x4_t vmul = { 128, 64, 32, 16 };
+    x = vmulq_u32(x, vmul);
+#else
+    const int32x4_t vshift = { 7, 6, 5, 4 };
+    x = vshlq_u32(x, vshift);
+#endif
+    x = vshrq_n_u32(x, 7);
+    vst1q_u32(v, x);
+    int32_t hi = base64dec1(s + 16);
+    if (hi < 0) return false;
+    v[3] |= (hi & Mask(4)) << 21;
+    *e = (hi >> 4);
+    return ok;
+}
+
 static inline bool unpack26x3c13o1(const char *s, uint32_t *v, unsigned *e)
 {
     uint32x4_t x;

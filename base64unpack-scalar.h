@@ -25,6 +25,31 @@ static inline bool unpack25x3c13e3o1(const char *s, uint32_t *v, unsigned *e)
     return true;
 }
 
+static inline bool unpack25x4c17e2(const char *s, uint32_t *v, unsigned *e)
+{
+    int32_t x;
+    x = base64dec2(s + 0) | base64dec2(s + 2) << 12;
+    if (x < 0) return false;
+    v[0]  = x;
+    x = base64dec2(s + 4) | base64dec2(s + 6) << 12;
+    if (x < 0) return false;
+    v[0] |= (x & Mask(1)) << 24;
+    v[1]  = (x >> 1);
+    x = base64dec2(s + 8) | base64dec2(s + 10) << 12;
+    if (x < 0) return false;
+    v[1] |= (x & Mask(2)) << 23;
+    v[2]  = (x >> 2);
+    x = base64dec2(s + 12) | base64dec2(s + 14) << 12;
+    if (x < 0) return false;
+    v[2] |= (x & Mask(3)) << 22;
+    v[3]  = (x >> 3);
+    x = base64dec1(s + 16);
+    if (x < 0) return false;
+    v[3] |= (x & Mask(4)) << 21;
+    *e    = (x >> 4);
+    return true;
+}
+
 static inline bool unpack26x3c13o1(const char *s, uint32_t *v, unsigned *e)
 {
     int32_t x;
