@@ -38,4 +38,10 @@ static inline uint32_t base64dec2(const char *s)
     return base64d0[c0] | base64d1[c1];
 }
 
+static inline uint32_t base64dec3(const char *s)
+{
+    unsigned char c0 = s[0], c1 = s[1], c2 = s[2];
+    return base64d0[c0] | base64d1[c1] | base64d2[c2];
+}
+
 #pragma GCC visibility pop
