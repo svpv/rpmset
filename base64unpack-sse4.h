@@ -121,6 +121,14 @@ static inline bool unpack10x24c40(const char *s, uint32_t *v, unsigned *e)
     return (void) e, true;
 }
 
+static inline bool unpack24x4c16(const char *s, uint32_t *v, unsigned *e)
+{
+    __m128i x;
+    if (!unpack24(s, &x)) return false;
+    _mm_storeu_si128((void *) v, x);
+    return (void) e, true;
+}
+
 static inline bool unpack25x3c13e3o1(const char *s, uint32_t *v, unsigned *e)
 {
     __m128i x;

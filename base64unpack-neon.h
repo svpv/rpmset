@@ -52,6 +52,14 @@ static inline bool unpack24(const char *s, uint32x4_t *x)
 
 #define Mask(k) ((1U << k) - 1)
 
+static inline bool unpack24x4c16(const char *s, uint32_t *v, unsigned *e)
+{
+    uint32x4_t x;
+    bool ok = unpack24(s, &x);
+    vst1q_u32(v, x);
+    return (void) e, ok;
+}
+
 static inline bool unpack25x3c13e3o1(const char *s, uint32_t *v, unsigned *e)
 {
     uint32x4_t x;
