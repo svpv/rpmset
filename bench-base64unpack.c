@@ -49,7 +49,7 @@ static inline uint64_t wrap_LOOP(
 }
 
 #define WRAP_LOOP(unpack, N, C) \
-uint64_t LOOP_##unpack(const char *s, uint32_t *v, unsigned *e) \
+uint64_t LOOP_##unpack(const char *restrict s, uint32_t *restrict v, unsigned *restrict e) \
 { return wrap_LOOP(unpack, s, v, e, N, C); }
 
 WRAP_LOOP(unpack22x4c15e2o1, 4,  15)
