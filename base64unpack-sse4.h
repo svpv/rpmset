@@ -121,17 +121,17 @@ static inline bool unpack10x24c40(const char *s, uint32_t *v, unsigned *e)
     return (void) e, true;
 }
 
-static inline bool unpack22x4c15e2o1(const char *s, uint32_t *v, unsigned *e)
+static inline bool unpack22x4c15e2(const char *s, uint32_t *v, unsigned *e)
 {
     __m128i x;
-    if (!unpack6(s, &x)) return false;
-    *e = _mm_cvtsi128_si32(x) & Mask(2);
+    if (!unpack6(s - 1, &x)) return false;
+    *e = _mm_cvtsi128_si32(x) >> 28;
     x = glue24(glue12(x));
     const __m128i shuf = _mm_setr_epi8(
-	    0, 1, 2, -1,  4,  5,  6, -1,
-	    6, 8, 9, 10, 10, 12, 13, 14);
+	    0,  1,  4,  5,  5,  6, 8,  9,
+	    9, 10, 12, -1, 13, 14, 2, -1);
     x = _mm_shuffle_epi8(x, shuf);
-    x = _mm_mullo_epi32(x, _mm_setr_epi32(256, 1024, 16, 64));
+    x = _mm_mullo_epi32(x, _mm_setr_epi32(16, 64, 256, 1024));
     x = _mm_srli_epi32(x, 10);
     _mm_storeu_si128((void *) v, x);
     return true;
