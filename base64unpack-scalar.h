@@ -4,6 +4,29 @@
 
 #define Mask(k) ((1U << k) - 1)
 
+static inline bool unpack20x4c14e4a(const char *s, uint32_t *v, unsigned *e)
+{
+    int32_t x;
+    uint32_t e0, e1, e2, e3;
+    x = base64dec2(s + 0) | (base64dec1(s + 2) | (e0 = base64dec1shl6(s + 3))) << 12;
+    if (x < 0) return false;
+    v[0]  = (x & Mask(20));
+    v[1]  = (x >> 21);
+    x = base64dec2(s + 4) | (e1 = base64dec1shl12(s + 6));
+    if (x < 0) return false;
+    v[1] |= (x & Mask(17)) << 3;
+    x = base64dec3(s + 7);
+    if (x < 0) return false;
+    v[2]  =  x;
+    x = (e2 = base64dec1(s + 10)) | base64dec1shl6(s + 11)
+      | base64dec1shl12(s + 12) | (e3 = (base64dec1(s + 13) << 18));
+    if (x < 0) return false;
+    v[2] |= (x & Mask(2)) << 18;
+    v[3]  = (x >> 3) & Mask(20);
+    *e = ((e0 | e1 | e2 | e3) & 0x820104) * 0x10101100 >> 28;
+    return true;
+}
+
 static inline bool unpack21x4c14(const char *s, uint32_t *v, unsigned *e)
 {
     int32_t x;
