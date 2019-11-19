@@ -52,8 +52,7 @@ static inline uint64_t wrap_LOOP(
 uint64_t LOOP_##unpack(const char *restrict s, uint32_t *restrict v, unsigned *restrict e) \
 { return wrap_LOOP(unpack, s, v, e, N, C); }
 
-WRAP_LOOP(unpack20x4c14e4a,  4,  14)
-WRAP_LOOP(unpack20x4c14e4b,  4,  14)
+WRAP_LOOP(unpack20x4c14e4,   4,  14)
 WRAP_LOOP(unpack21x4c14,     4,  14)
 WRAP_LOOP(unpack22x4c15e2,   4,  15)
 WRAP_LOOP(unpack23x4c16e4,   4,  16)
@@ -101,8 +100,7 @@ void bench_LOOP(const char *name,
 
 int main()
 {
-    bench_LOOP("unpack20x4a", pack20x4c14e4a,LOOP_unpack20x4c14e4a,  20,  4, 14, 4, 0);
-    bench_LOOP("unpack20x4b", pack20x4c14e4b,LOOP_unpack20x4c14e4b,  20,  4, 14, 4, 0);
+    bench_LOOP("unpack20x4",  pack20x4c14e4, LOOP_unpack20x4c14e4,   20,  4, 14, 4, 0);
     bench_LOOP("unpack21x4",  pack21x4c14,   LOOP_unpack21x4c14,     21,  4, 14, 0, 0);
     bench_LOOP("unpack22x4",  pack22x4c15e2, LOOP_unpack22x4c15e2,   22,  4, 15, 2, 0);
     bench_LOOP("unpack23x4",  pack23x4c16e4, LOOP_unpack23x4c16e4,   23,  4, 16, 4, 0);

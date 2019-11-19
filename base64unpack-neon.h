@@ -52,37 +52,10 @@ static inline bool unpack24(const char *s, uint32x4_t *x)
 
 #define Mask(k) ((1U << k) - 1)
 
-static inline bool unpack20x4c14e4a(const char *s, uint32_t *v, unsigned *e)
+static inline bool unpack20x4c14e4(const char *s, uint32_t *v, unsigned *e)
 {
     uint8x16_t x6;
     bool ok = unpack6(s - 2, &x6);
-    const uint8x16_t hi6 = {
-	     5,  8, 12, 15, -1, -1, -1, -1,
-	    -1, -1, -1, -1, -1, -1, -1, -1 };
-    const uint8x16_t shuf = {
-	    1, 2,  4,  5,  5,  6,  8, -1,
-	    8, 9, 10, 12, 12, 13, 14, 15 };
-    uint32x4_t y = vreinterpretq_u32_u8(vqtbl1q_u8(x6, hi6));
-    uint32x4_t x = glue24(glue12(x6));
-    *e = (y[0] & 0x60042204) * 0x4011004 >> 28;
-    x = vreinterpretq_u32_u8(vqtbl1q_u8(vreinterpretq_u8_u32(x), shuf));
-#ifdef SLOW_VSHIFT
-    const uint32x4_t vmul = { 256, 2048, 64, 512 };
-    x = vmulq_u32(x, vmul);
-#else
-    const int32x4_t vshift = { 8, 11, 6, 9 };
-    x = vshlq_u32(x, vshift);
-#endif
-    x = vshrq_n_u32(x, 12);
-    vst1q_u32(v, x);
-    return ok;
-}
-
-static inline bool unpack20x4c14e4b(const char *s, uint32_t *v, unsigned *e)
-{
-    uint8x16_t x6;
-    bool ok = unpack6(s - 2, &x6);
-#if 1
     *e = x6[2] & Mask(4);
     const uint8x16_t shuf = {
 	    -1, 2,  4,  5, -1,  5,  6,  8,
@@ -95,21 +68,6 @@ static inline bool unpack20x4c14e4b(const char *s, uint32_t *v, unsigned *e)
 #else
     const int32x4_t vshift = { 4, 0, 4, 0 };
     x = vshlq_u32(x, vshift);
-#endif
-#else
-    *e = x6[3] >> 2;
-    const uint8x16_t shuf = {
-	    -1, 1,  4,  5, -1,  6,  8,  2,
-	    -1, 9, 10, 12, -1, 12, 13, 14 };
-    uint32x4_t x = glue24(glue12(x6));
-    x = vreinterpretq_u32_u8(vqtbl1q_u8(vreinterpretq_u8_u32(x), shuf));
-#ifdef SLOW_VSHIFT
-    const uint32x4_t vmul = { 1, 16, 16, 1 };
-    x = vmulq_u32(x, vmul);
-#else
-    const int32x4_t vshift = { 0, 4, 4, 0 };
-    x = vshlq_u32(x, vshift);
-#endif
 #endif
     x = vshrq_n_u32(x, 12);
     vst1q_u32(v, x);
