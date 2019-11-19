@@ -125,7 +125,7 @@ static inline bool unpack20x4c14e4(const char *s, uint32_t *v, unsigned *e)
 {
     __m128i x, y;
     if (!unpack6(s - 2, &x)) return false;
-    *e = (_mm_cvtsi128_si32(x) >> 16) & Mask(4);
+    *e = _mm_extract_epi16(x, 1) & Mask(4);
     const __m128i shuf = _mm_setr_epi8(
 	    -1, 2,  4,  5, -1,  5,  6,  8,
 	    -1, 9, 10, 12, -1, 12, 13, 14);
