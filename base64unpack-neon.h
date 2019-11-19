@@ -78,6 +78,44 @@ static inline bool unpack20x4c14e4a(const char *s, uint32_t *v, unsigned *e)
     return ok;
 }
 
+static inline bool unpack20x4c14e4b(const char *s, uint32_t *v, unsigned *e)
+{
+    uint8x16_t x6;
+    bool ok = unpack6(s - 2, &x6);
+#if 1
+    *e = x6[2] & Mask(4);
+    const uint8x16_t shuf = {
+	    -1, 2,  4,  5, -1,  5,  6,  8,
+	    -1, 9, 10, 12, -1, 12, 13, 14 };
+    uint32x4_t x = glue24(glue12(x6));
+    x = vreinterpretq_u32_u8(vqtbl1q_u8(vreinterpretq_u8_u32(x), shuf));
+#ifdef SLOW_VSHIFT
+    const uint32x4_t vmul = { 16, 1, 16, 1 };
+    x = vmulq_u32(x, vmul);
+#else
+    const int32x4_t vshift = { 4, 0, 4, 0 };
+    x = vshlq_u32(x, vshift);
+#endif
+#else
+    *e = x6[3] >> 2;
+    const uint8x16_t shuf = {
+	    -1, 1,  4,  5, -1,  6,  8,  2,
+	    -1, 9, 10, 12, -1, 12, 13, 14 };
+    uint32x4_t x = glue24(glue12(x6));
+    x = vreinterpretq_u32_u8(vqtbl1q_u8(vreinterpretq_u8_u32(x), shuf));
+#ifdef SLOW_VSHIFT
+    const uint32x4_t vmul = { 1, 16, 16, 1 };
+    x = vmulq_u32(x, vmul);
+#else
+    const int32x4_t vshift = { 0, 4, 4, 0 };
+    x = vshlq_u32(x, vshift);
+#endif
+#endif
+    x = vshrq_n_u32(x, 12);
+    vst1q_u32(v, x);
+    return ok;
+}
+
 static inline bool unpack21x4c14(const char *s, uint32_t *v, unsigned *e)
 {
     uint32x4_t x;

@@ -140,6 +140,34 @@ static inline bool unpack20x4c14e4a(const char *s, uint32_t *v, unsigned *e)
     return true;
 }
 
+static inline bool unpack20x4c14e4b(const char *s, uint32_t *v, unsigned *e)
+{
+    __m128i x, y;
+    if (!unpack6(s - 2, &x)) return false;
+#if 1
+    *e = (_mm_cvtsi128_si32(x) >> 16) & Mask(4);
+    const __m128i shuf = _mm_setr_epi8(
+	    -1, 2,  4,  5, -1,  5,  6,  8,
+	    -1, 9, 10, 12, -1, 12, 13, 14);
+    x = glue24(glue12(x));
+    x = _mm_shuffle_epi8(x, shuf);
+    y = _mm_slli_epi32(x, 4);
+    x = _mm_blend_epi16(x, y, 0x33);
+#else
+    *e = _mm_cvtsi128_si32(x) >> 26;
+    const __m128i shuf = _mm_setr_epi8(
+	    -1, 1,  4,  5, -1,  6,  8,  2,
+	    -1, 9, 10, 12, -1, 12, 13, 14);
+    x = glue24(glue12(x));
+    x = _mm_shuffle_epi8(x, shuf);
+    y = _mm_slli_epi32(x, 4);
+    x = _mm_blend_epi16(x, y, 0x3c);
+#endif
+    x = _mm_srli_epi32(x, 12);
+    _mm_storeu_si128((void *) v, x);
+    return true;
+}
+
 static inline bool unpack21x4c14(const char *s, uint32_t *v, unsigned *e)
 {
     __m128i x, y;
