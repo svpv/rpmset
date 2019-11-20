@@ -13,13 +13,13 @@ static inline bool unpack18x5c15(const char *s, uint32_t *v, unsigned *e)
     x = base64dec3(s + 3);
     if (x < 0) return false;
     v[1] = x;
-    x = base64dec3(s + 6);
+    x = base64dec2(s + 7) | base64dec1shl12(s + 6);
     if (x < 0) return false;
     v[2] = x;
-    x = base64dec3(s + 9);
+    x = base64dec2(s + 11) | base64dec1shl12(s + 9);
     if (x < 0) return false;
     v[3] = x;
-    x = base64dec3(s + 12);
+    x = base64dec2(s + 13) | base64dec1shl12(s + 10);
     if (x < 0) return false;
     v[4] = x;
     return (void) e, true;
