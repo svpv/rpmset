@@ -52,6 +52,28 @@ static inline bool unpack24(const char *s, uint32x4_t *x)
 
 #define Mask(k) ((1U << k) - 1)
 
+static inline bool unpack19x4c13e2o1(const char *s, uint32_t *v, unsigned *e)
+{
+    uint8x16_t x6;
+    bool ok = unpack6(s - 2, &x6);
+    *e = x6[2] & Mask(2);
+    const uint8x16_t shuf = {
+	     1, 2, 4,  5, -1,  5,  6,  8,
+	    -1, 8, 9, 10, 10, 12, 13, 14 };
+    uint32x4_t x = glue24(glue12(x6));
+    x = vreinterpretq_u32_u8(vqtbl1q_u8(vreinterpretq_u8_u32(x), shuf));
+#ifdef SLOW_VSHIFT
+    const uint32x4_t vmul = { 128, 16, 2, 64 };
+    x = vmulq_u32(x, vmul);
+#else
+    const int32x4_t vshift = { 7, 4, 1, 6 };
+    x = vshlq_u32(x, vshift);
+#endif
+    x = vshrq_n_u32(x, 13);
+    vst1q_u32(v, x);
+    return ok;
+}
+
 static inline bool unpack20x4c14e4(const char *s, uint32_t *v, unsigned *e)
 {
     uint8x16_t x6;
