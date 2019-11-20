@@ -74,6 +74,29 @@ static inline bool unpack19x4c13e2o1(const char *s, uint32_t *v, unsigned *e)
     return ok;
 }
 
+static inline bool unpack19x5c16e1(const char *s, uint32_t *v, unsigned *e)
+{
+    uint8x16_t x6;
+    bool ok = unpack6(s, &x6);
+    *e = x6[0] & 1;
+    const uint8x16_t shuf = {
+	    -1, 2,  4,  5,  5,  6,  8,  9,
+	    -1, 9, 10, 12, -1, 12, 13, 14 };
+    uint32x4_t x = glue24(glue12(x6));
+    v[0] = (x[0] >> 1) & Mask(19);
+    x = vreinterpretq_u32_u8(vqtbl1q_u8(vreinterpretq_u8_u32(x), shuf));
+#ifdef SLOW_VSHIFT
+    const uint32x4_t vmul = { 2, 64, 8, 1 };
+    x = vmulq_u32(x, vmul);
+#else
+    const int32x4_t vshift = { 1, 6, 3, 0 };
+    x = vshlq_u32(x, vshift);
+#endif
+    x = vshrq_n_u32(x, 13);
+    vst1q_u32(v + 1, x);
+    return ok;
+}
+
 static inline bool unpack20x4c14e4(const char *s, uint32_t *v, unsigned *e)
 {
     uint8x16_t x6;
