@@ -54,21 +54,21 @@ static inline bool unpack24(const char *s, uint32x4_t *x)
 
 static inline bool unpack18x5c15(const char *s, uint32_t *v, unsigned *e)
 {
-    uint8x16_t x6;
-    bool ok = unpack6(s - 1, &x6);
-    uint16x8_t y = glue12(x6);
-    uint32_t y0 = vreinterpretq_u32_u16(y)[0];
-    v[0] = (uint8_t)(y0 >> 6) | y0 >> 16 << 6;
-    const uint8x16_t shuf6 = {
-	    -1, -1,  6, -1, -1, -1,  7, -1,
-	    -1, -1, 10, -1, -1, -1, 11, -1 };
-    const uint8x16_t shuf12 = {
-	     4,  5, -1, -1,  8,  9, -1, -1,
-	    12, 13, -1, -1, 14, 15, -1, -1 };
-    x6 = vqtbl1q_u8(x6, shuf6);
-    y = vreinterpretq_u16_u8(vqtbl1q_u8(vreinterpretq_u8_u16(y), shuf12));
-    y = vorrq_u16(y, vreinterpretq_u16_u8(x6));
-    uint32x4_t x = glue24(y);
+    uint32x4_t x;
+    bool ok = unpack24(s - 1, &x);
+    v[0] = x[0] >> 6;
+    const uint8x16_t shuf = {
+	    -1, 4,  5,  6, -1,  6,  8,  9,
+	    -1, 9, 10, 12, -1, 12, 13, 14 };
+    x = vreinterpretq_u32_u8(vqtbl1q_u8(vreinterpretq_u8_u32(x), shuf));
+#ifdef SLOW_VSHIFT
+    const uint32x4_t vmul = { 64, 16, 4, 1 };
+    x = vmulq_u32(x, vmul);
+#else
+    const int32x4_t vshift = { 6, 4, 2, 0 };
+    x = vshlq_u32(x, vshift);
+#endif
+    x = vshrq_n_u32(x, 14);
     vst1q_u32(v + 1, x);
     return (void) e, ok;
 }
