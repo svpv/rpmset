@@ -7,6 +7,7 @@
 #define V32x4 uint32x4_t
 #define VLOAD(p) Vfrom8(vld1q_u8((const void *)(p)))
 #define VSTORE(p, x) vst1q_u32(p, x)
+#define VSTORE64(p, x) vst1_u32(p, vget_low_u32(x))
 
 #define VDUP8(k) Vfrom8(vdupq_n_u8(k))
 #define VADD8(x, y) Vfrom8(vaddq_u8(Vto8(x), Vto8(y)))
@@ -50,7 +51,8 @@ static inline V32x4 glue24(V32x4 x)
 
 #define V32x4 __m128i
 #define VLOAD(p) _mm_loadu_si128((const void *)(p))
-#define VSTORE(p, x) _mm_storeu_si128((void *)(p), x);
+#define VSTORE(p, x) _mm_storeu_si128((void *)(p), x)
+#define VSTORE64(p, x) _mm_storel_epi64((void *)(p), x)
 
 #define VDUP8(k) _mm_set1_epi8(k)
 #define VADD8(x, y) _mm_add_epi8(x, y)
@@ -141,6 +143,21 @@ static inline bool unpack24(const char *s, V32x4 *x)
     *x = glue12(*x);
     *x = glue24(*x);
     return !err;
+}
+
+static inline bool unpack16x6c16(const char *s, uint32_t *v, unsigned *e)
+{
+    V32x4 x, y;
+    if (!unpack24(s, &x)) return false;
+    y = VSHUF8(x, V8x16_C(
+	    0, 1, -1, -1, 2, 4, -1, -1,
+	    5, 6, -1, -1, 8, 9, -1, -1));
+    VSTORE(v, y);
+    y = VSHUF8(x, V8x16_C(
+	    10, 12, -1, -1, 13, 14, -1, -1,
+	    -1, -1, -1, -1, -1, -1, -1, -1));
+    VSTORE64(v + 4, y);
+    return (void) e, true;
 }
 
 static inline bool unpack17x5c15e5(const char *s, uint32_t *v, unsigned *e)
