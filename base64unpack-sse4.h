@@ -121,20 +121,7 @@ static inline bool unpack10x24c40(const char *s, uint32_t *v, unsigned *e)
     return (void) e, true;
 }
 
-static inline bool unpack18x5c15(const char *s, uint32_t *v, unsigned *e)
-{
-    __m128i x;
-    if (!unpack24(s - 1, &x)) return false;
-    v[0] = _mm_cvtsi128_si32(x) >> 6;
-    const __m128i shuf = _mm_setr_epi8(
-	    -1, 4,  5,  6, -1,  6,  8,  9,
-	    -1, 9, 10, 12, -1, 12, 13, 14);
-    x = _mm_shuffle_epi8(x, shuf);
-    x = _mm_mullo_epi32(x, _mm_setr_epi32(64, 16, 4, 1));
-    x = _mm_srli_epi32(x, 14);
-    _mm_storeu_si128((void *)(v + 1), x);
-    return (void) e, true;
-}
+#include "base64unpack-simd.h"
 
 static inline bool unpack19x4c13e2o1(const char *s, uint32_t *v, unsigned *e)
 {
