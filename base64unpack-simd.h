@@ -143,6 +143,22 @@ static inline bool unpack24(const char *s, V32x4 *x)
     return !err;
 }
 
+static inline bool unpack17x5c15e5(const char *s, uint32_t *v, unsigned *e)
+{
+    V32x4 x;
+    if (!unpack6(s - 1, &x)) return false;
+    *e = VEXTR32(x, 0) >> 25;
+    x = glue24(glue12(x));
+    v[0] = VEXTR32(x, 1) >> 7;
+    x = VSHUF8(x, V8x16_C(
+	    -1,  0,  1,  4, -1,  8,  9, 10,
+	    -1, 10, 12, 13, -1, 13, 14,  2));
+    x = VSHLV32(x, 1, 7, 6, 5);
+    x = VSHR32(x, 15);
+    VSTORE(v + 1, x);
+    return true;
+}
+
 static inline bool unpack18x5c15(const char *s, uint32_t *v, unsigned *e)
 {
     V32x4 x;

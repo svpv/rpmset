@@ -4,6 +4,35 @@
 
 #define Mask(k) ((1U << k) - 1)
 
+static inline void pack17x5c15e5(const uint32_t *v, char *s, unsigned e)
+{
+    uint32_t x;
+    x = (v[1] & Mask(10))
+      | (v[4] & Mask(17)) >> 14 << 10
+      | (  e  & Mask( 5)) << 13;
+    s[ 0] = base64[(x & Mask(6))];
+    s[ 1] = base64[(x & Mask(12)) >> 6];
+    s[ 2] = base64[(x >> 12)];
+    x = (v[1] & Mask(17)) >> 10
+      | (v[0] & Mask(17)) << 7;
+    s[ 3] = base64[(x & Mask(6))];
+    s[ 4] = base64[(x & Mask(12)) >> 6];
+    s[ 5] = base64[(x & Mask(18)) >> 12];
+    s[ 6] = base64[(x >> 18)];
+    x = (v[2] & Mask(17))
+      | (v[3] & Mask(7)) << 17;
+    s[ 7] = base64[(x & Mask(6))];
+    s[ 8] = base64[(x & Mask(12)) >> 6];
+    s[ 9] = base64[(x & Mask(18)) >> 12];
+    s[10] = base64[(x >> 18)];
+    x = (v[3] & Mask(17)) >> 7
+      | (v[4] & Mask(14)) << 10;
+    s[11] = base64[(x & Mask(6))];
+    s[12] = base64[(x & Mask(12)) >> 6];
+    s[13] = base64[(x & Mask(18)) >> 12];
+    s[14] = base64[(x >> 18)];
+}
+
 static inline void pack18x5c15(const uint32_t *v, char *s, unsigned e)
 {
     s[ 0] = base64[(v[0] & Mask( 6))];
