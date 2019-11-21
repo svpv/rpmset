@@ -3,52 +3,8 @@
 #include <smmintrin.h>
 #include "base64.h"
 
-static inline bool unpack6(const char *s, __m128i *x)
-{
-    *x = _mm_loadu_si128((const void *) s);
-    const __m128i lut_lo = _mm_setr_epi8(
-	    0x15, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
-	    0x11, 0x11, 0x13, 0x1a, 0x1b, 0x1b, 0x1b, 0x1a);
-    const __m128i lut_hi = _mm_setr_epi8(
-	    0x10, 0x10, 0x01, 0x02, 0x04, 0x08, 0x04, 0x08,
-	    0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10);
-    const __m128i lut_roll = _mm_setr_epi8(
-	    0, 16, 19, 4, -65, -65, -71, -71,
-	    0,  0,  0, 0,   0,   0,   0,   0);
-    const __m128i mask_2f = _mm_set1_epi8(0x2f);
-    __m128i lo_nib = _mm_and_si128(*x, mask_2f);
-    __m128i hi_nib = _mm_srli_epi32(*x, 4);
-    __m128i lo = _mm_shuffle_epi8(lut_lo, lo_nib);
-    __m128i eq_2f = _mm_cmpeq_epi8(*x, mask_2f);
-    hi_nib = _mm_and_si128(hi_nib, mask_2f);
-    __m128i hi = _mm_shuffle_epi8(lut_hi, hi_nib);
-    __m128i roll = _mm_shuffle_epi8(lut_roll, _mm_add_epi8(eq_2f, hi_nib));
-    if (!_mm_testz_si128(lo, hi))
-	return false;
-    *x = _mm_add_epi8(*x, roll);
-    return true;
-}
-
-static inline __m128i glue12(__m128i x)
-{
-    return _mm_maddubs_epi16(x, _mm_set1_epi32(0x40014001));
-}
-
-static inline __m128i glue24(__m128i x)
-{
-    return _mm_madd_epi16(x, _mm_set1_epi32(0x10000001));
-}
-
-static inline bool unpack24(const char *s, __m128i *x)
-{
-    if (!unpack6(s, x))
-	return false;
-    *x = glue12(*x);
-    *x = glue24(*x);
-    return true;
-}
-
 #define Mask(k) ((1U << k) - 1)
+#include "base64unpack-simd.h"
 
 static inline bool unpack9x32c48(const char *s, uint32_t *v, unsigned *e)
 {
@@ -120,8 +76,6 @@ static inline bool unpack10x24c40(const char *s, uint32_t *v, unsigned *e)
     _mm_storeu_si128((void *) &v[20], out);
     return (void) e, true;
 }
-
-#include "base64unpack-simd.h"
 
 static inline bool unpack19x4c13e2o1(const char *s, uint32_t *v, unsigned *e)
 {

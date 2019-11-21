@@ -3,55 +3,7 @@
 #include <arm_neon.h>
 #include "base64.h"
 
-static inline bool unpack6(const char *s, uint8x16_t *x)
-{
-    *x = vld1q_u8((const uint8_t *) s);
-    const uint8x16_t lut_lo = {
-	    0x15, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
-	    0x11, 0x11, 0x13, 0x1a, 0x1b, 0x1b, 0x1b, 0x1a };
-    const uint8x16_t lut_hi = {
-	    0x10, 0x10, 0x01, 0x02, 0x04, 0x08, 0x04, 0x08,
-	    0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10 };
-    const uint8x16_t lut_roll = {
-	    0, 16, 19, 4, -65, -65, -71, -71,
-	    0,  0,  0, 0,   0,   0,   0,   0 };
-    uint8x16_t lo_nib = vandq_u8(*x, vdupq_n_u8(0x0f));
-    uint8x16_t hi_nib = vshrq_n_u8(*x, 4);
-    uint8x16_t lo = vqtbl1q_u8(lut_lo, lo_nib);
-    uint8x16_t hi = vqtbl1q_u8(lut_hi, hi_nib);
-    uint8x16_t eq_2f = vceqq_u8(*x, vdupq_n_u8(0x2f));
-    uint8x16_t roll = vqtbl1q_u8(lut_roll, vaddq_u8(eq_2f, hi_nib));
-    uint8_t err = vmaxvq_u8(vandq_u8(lo, hi));
-    *x = vaddq_u8(*x, roll);
-    return !err;
-}
-
-static inline uint16x8_t glue12(uint8x16_t x)
-{
-    uint16x8_t y, z;
-    y = vreinterpretq_u16_u8(x);
-    z = vshrq_n_u16(y, 8);
-    return vsliq_n_u16(y, z, 6);
-}
-
-static inline uint32x4_t glue24(uint16x8_t x)
-{
-    uint32x4_t y, z;
-    y = vreinterpretq_u32_u16(x);
-    z = vshrq_n_u32(y, 16);
-    return vsliq_n_u32(y, z, 12);
-}
-
-static inline bool unpack24(const char *s, uint32x4_t *x)
-{
-    uint8x16_t y;
-    bool ok = unpack6(s, &y);
-    *x = glue24(glue12(y));
-    return ok;
-}
-
 #define Mask(k) ((1U << k) - 1)
-
 #include "base64unpack-simd.h"
 
 static inline bool unpack19x4c13e2o1(const char *s, uint32_t *v, unsigned *e)

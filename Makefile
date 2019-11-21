@@ -21,6 +21,7 @@ check: $(TARGETS:%=check-base64unpack-%)
 MFLAGS2 =
 %-sse4: MFLAGS2 = -msse4
 %-avx2: MFLAGS2 = -mavx2
+%-neon: MFLAGS2 = -flax-vector-conversions -Wno-incompatible-pointer-types
 WFLAGS = -Wextra
 COMPILE = $(CC) $(RPM_OPT_FLAGS) $(WFLAGS) $(MFLAGS1) $(MFLAGS2)
 bench-base64unpack-% : base64unpack-%.h base64.h base64.c base64pack.h bench-base64unpack.c
