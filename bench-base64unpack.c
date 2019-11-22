@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <assert.h>
+#include "base64.h"
 #include "base64pack.h"
 
 #if defined(__i386__) || defined(__x86_64__)
@@ -41,7 +42,8 @@ static inline uint64_t wrap_LOOP(
     const char *s_end = s + LOOP*c;
     do {
 	bool ok = unpack(s, v, e);
-	assert(ok);
+	if (!ok)
+	    return 0;
 	v += n, s += c, e++;
     } while (s < s_end);
     asm volatile("" ::: "memory");
@@ -93,8 +95,11 @@ void bench_LOOP(const char *name,
 	pack(v + n * i, s + c * i, ev[i]);
     s[LOOP*c] = 'x', s[LOOP*c+o] = '\0';
     uint64_t t = 0;
-    for (unsigned i = 0; i < (1<<16); i++)
-	t += unpack_loop16(s, w, ew);
+    for (unsigned i = 0; i < (1<<16); i++) {
+	uint64_t x = unpack_loop16(s, w, ew);
+	assert(x);
+	t += x;
+    }
     for (unsigned i = 0; i < LOOP*n; i++)
 	v[i] &= (1 << m) - 1;
     assert(memcmp(v, w, LOOP*n * 4) == 0);
@@ -105,6 +110,18 @@ void bench_LOOP(const char *name,
     }
     fprintf(stderr, "%s: %.2f cycles per integer\n",
 	    name, (double) t / (LOOP*n) / (1<<16));
+    // Must fail on invalid inputs.
+    for (unsigned i = 0; i < LOOP*c; i++) {
+	char fita; // Gogol's indecent letter
+	do
+	    fita = rand32();
+	while ((int32_t)base64dec1(&fita) >= 0);
+	char save = s[i];
+	s[i] = fita;
+	uint64_t x = unpack_loop16(s, w, ew);
+	assert(x == 0);
+	s[i] = save;
+    }
 }
 
 int main()
