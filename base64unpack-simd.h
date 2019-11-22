@@ -176,6 +176,28 @@ static inline bool unpack17x5c15e5(const char *s, uint32_t *v, unsigned *e)
     return true;
 }
 
+static inline bool unpack17x6c17(const char *s, uint32_t *v, unsigned *e)
+{
+    V32x4 x, y;
+    if (!unpack24(s, &x)) return false;
+    y = VSHUF8(x, V8x16_C(
+	    -1, 0, 1, 2, -1, 2, 4,  5,
+	    -1, 5, 6, 8, -1, 8, 9, 10));
+    y = VSHLV32(y, 7, 6, 5, 4);
+    y = VSHR32(y, 15);
+    VSTORE(v, y);
+    y = VSHUF8(x, V8x16_C(
+	    -1, 10, 12, 13, -1, 13, 14, -1,
+	    -1, -1, -1, -1, -1, -1, -1, -1));
+    y = VSHLV32(y, 3, 2, 0, 0);
+    y = VSHR32(y, 15);
+    VSTORE64(v + 4, y);
+    int32_t z = base64dec1(s + 16);
+    if (z < 0) return false;
+    v[5] |= (z << 11);
+    return (void) e, true;
+}
+
 static inline bool unpack18x5c15(const char *s, uint32_t *v, unsigned *e)
 {
     V32x4 x;
