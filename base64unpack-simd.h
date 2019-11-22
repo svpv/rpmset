@@ -23,11 +23,11 @@
 #define VEXTR16(x, k) vreinterpretq_u16_u32(x)[k]
 #define VEXTR32(x, k) x[k]
 
-#define FAST_VSHIFT 1
 #define VSHLV32(x, k0, k1, k2, k3) \
 	vshlq_u32(x, (int32x4_t){ k0, k1, k2, k3 })
 
 #define VSHR8(x, k) Vfrom8(vshrq_n_u8(Vto8(x), k))
+#define VSHL32(x, k) vshlq_n_u32(x, k)
 #define VSHR32(x, k) vshrq_n_u32(x, k)
 
 #define VAND(x, y) vandq_u32(x, y)
@@ -70,15 +70,16 @@ static inline V32x4 glue24(V32x4 x)
 
 #ifdef __AVX2__
 #include <immintrin.h>
-#define FAST_VSHIFT 1
 #define VSHLV32(x, k0, k1, k2, k3) \
 	_mm_sllv_epi32(x, _mm_setr_epi32(k0, k1, k2, k3))
 #else
-#define FAST_VSHIFT 0
 #define VSHLV32(x, k0, k1, k2, k3) \
 	_mm_mullo_epi32(x, _mm_setr_epi32(1U<<k0, 1U<<k1, 1U<<k2, 1U<<k3))
+// We only need blend to avoid slow variable shift.
+#define VBLEND16(x, y, c) _mm_blend_epi16(x, y, c)
 #endif
 
+#define VSHL32(x, k) _mm_slli_epi32(x, k)
 #define VSHR32(x, k) _mm_srli_epi32(x, k)
 
 #define VAND(x, y) _mm_and_si128(x, y)
@@ -143,6 +144,30 @@ static inline bool unpack24(const char *s, V32x4 *x)
     *x = glue12(*x);
     *x = glue24(*x);
     return !err;
+}
+
+static inline bool unpack15x6c15(const char *s, uint32_t *v, unsigned *e)
+{
+    V32x4 x, y;
+    if (!unpack24(s - 1, &x)) return false;
+    y = VSHUF8(x, V8x16_C(
+	    -1, 0, 1, 2, -1, 2, 4, 5,
+	    -1, 5, 6, 8, -1, 8, 9, 10));
+    y = VSHLV32(y, 3, 4, 5, 6);
+    y = VSHR32(y, 17);
+    VSTORE(v, y);
+    y = VSHUF8(x, V8x16_C(
+	    -1, 10, 12, 13, -1, -1, 13, 14,
+	    -1, -1, -1, -1, -1, -1, -1, -1));
+#ifdef VBLEND16
+    x = VSHL32(y, 7);
+    y = VBLEND16(y, x, 0x33);
+#else
+    y = VSHLV32(y, 7, 0, 0, 0);
+#endif
+    y = VSHR32(y, 17);
+    VSTORE64(v + 4, y);
+    return (void) e, true;
 }
 
 static inline bool unpack16x6c16(const char *s, uint32_t *v, unsigned *e)
