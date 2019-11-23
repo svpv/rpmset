@@ -27,6 +27,32 @@ static inline void pack13x6c13(const uint32_t *v, char *s, unsigned e)
     (void) e;
 }
 
+static inline void pack13x7c16e5(const uint32_t *v, char *s, unsigned e)
+{
+    s[ 0] = base64[(  e  & Mask( 5))       |
+		   (v[0] & Mask( 1)) <<  5];
+    s[ 1] = base64[(v[0] & Mask( 7)) >>  1];
+    s[ 2] = base64[(v[0] & Mask(13)) >>  7];
+    s[ 3] = base64[(v[1] & Mask( 6))];
+    s[ 4] = base64[(v[1] & Mask(12)) >>  6];
+    s[ 5] = base64[(v[1] & Mask(13)) >> 12 |
+		   (v[2] & Mask( 5)) <<  1];
+    s[ 6] = base64[(v[2] & Mask(11)) >>  5];
+    s[ 7] = base64[(v[2] & Mask(13)) >> 11 |
+		   (v[3] & Mask( 4)) <<  2];
+    s[ 8] = base64[(v[3] & Mask(10)) >>  4];
+    s[ 9] = base64[(v[3] & Mask(13)) >> 10 |
+		   (v[4] & Mask( 3)) <<  3];
+    s[10] = base64[(v[4] & Mask( 9)) >>  3];
+    s[11] = base64[(v[4] & Mask(13)) >>  9 |
+		   (v[5] & Mask( 2)) <<  4];
+    s[12] = base64[(v[5] & Mask( 8)) >>  2];
+    s[13] = base64[(v[5] & Mask(13)) >>  8 |
+		   (v[6] & Mask( 1)) <<  5];
+    s[14] = base64[(v[6] & Mask( 7)) >>  1];
+    s[15] = base64[(v[6] & Mask(13)) >>  7];
+}
+
 static inline void pack14x6c14(const uint32_t *v, char *s, unsigned e)
 {
     s[ 0] = base64[(v[0] & Mask( 6))];

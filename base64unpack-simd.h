@@ -174,6 +174,27 @@ static inline bool unpack13x6c13o1(const char *s, uint32_t *v, unsigned *e)
     return (void) e, true;
 }
 
+static inline bool unpack13x7c16e5(const char *s, uint32_t *v, unsigned *e)
+{
+    V32x4 x, y;
+    if (!unpack6(s, &x)) return false;
+    *e = VEXTR32(x, 0) & Mask(5);
+    x = glue24(glue12(x));
+    y = VSHUF8(x, V8x16_C(
+	    -1, 0, 1, 2, -1, -1, 2, 4,
+	    -1, 4, 5, 6, -1,  6, 8, 9));
+    y = VSHLV32(y, 6, 1, 4, 7);
+    y = VSHR32(y, 19);
+    VSTORE(v, y);
+    y = VSHUF8(x, V8x16_C(
+	    -1, -1,  9, 10, -1, 10, 12, 13,
+	    -1, -1, 13, 14, -1, -1, -1, -1));
+    y = VSHLV32(y, 2, 5, 0, 0);
+    y = VSHR32(y, 19);
+    VSTORE(v + 4, y);
+    return (void) e, true;
+}
+
 static inline bool unpack14x6c14(const char *s, uint32_t *v, unsigned *e)
 {
     V32x4 x, y;
