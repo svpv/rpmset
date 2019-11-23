@@ -10,6 +10,8 @@
 #define VSTORE64(p, x) vst1_u32(p, vget_low_u32(x))
 
 #define VDUP8(k) Vfrom8(vdupq_n_u8(k))
+#define VDUP32(k) vdupq_n_u32(k)
+
 #define VADD8(x, y) Vfrom8(vaddq_u8(Vto8(x), Vto8(y)))
 #define VCMPEQ8(x, y) Vfrom8(vceqq_u8(Vto8(x), Vto8(y)))
 
@@ -56,6 +58,8 @@ static inline V32x4 glue24(V32x4 x)
 #define VSTORE64(p, x) _mm_storel_epi64((void *)(p), x)
 
 #define VDUP8(k) _mm_set1_epi8(k)
+#define VDUP32(k) _mm_set1_epi32(k)
+
 #define VADD8(x, y) _mm_add_epi8(x, y)
 #define VCMPEQ8(x, y) _mm_cmpeq_epi8(x, y)
 
@@ -151,6 +155,18 @@ static inline bool unpack24(const char *s, V32x4 *x)
     *x = glue12(*x);
     *x = glue24(*x);
     return !err;
+}
+
+static inline bool unpack12x8c16(const char *s, uint32_t *v, unsigned *e)
+{
+    V32x4 x, y;
+    if (!unpack6(s, &x)) return false;
+    x = glue12(x);
+    y = VAND(x, VDUP32(0xffff));
+    VSTORE(v, y);
+    y = VSHR32(x, 16);
+    VSTORE(v + 4, y);
+    return (void) e, true;
 }
 
 static inline bool unpack13x6c13o1(const char *s, uint32_t *v, unsigned *e)
