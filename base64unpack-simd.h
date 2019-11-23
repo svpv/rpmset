@@ -69,7 +69,11 @@ static inline V32x4 glue24(V32x4 x)
 #define VEXTR16(x, k) (uint32_t)_mm_extract_epi16(x, k)
 #define VEXTR32(x, k) (uint32_t)_mm_extract_epi32(x, k)
 
-#ifdef __AVX2__
+#if defined(__znver1__)
+#define VSHLV32(x, k0, k1, k2, k3) \
+	_mm_mullo_epi32(x, _mm_setr_epi32(1U<<k0, 1U<<k1, 1U<<k2, 1U<<k3))
+#define VSHLV32_COST 1
+#elif defined(__AVX2__)
 #include <immintrin.h>
 #define VSHLV32(x, k0, k1, k2, k3) \
 	_mm_sllv_epi32(x, _mm_setr_epi32(k0, k1, k2, k3))
