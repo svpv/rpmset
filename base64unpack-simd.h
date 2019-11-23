@@ -159,7 +159,13 @@ static inline bool unpack13x6c13o1(const char *s, uint32_t *v, unsigned *e)
     y = VSHUF8(x, V8x16_C(
 	    -1, -1, 10, 12, -1, 12, 13, 14,
 	    -1, -1, -1, -1, -1, -1, -1, -1));
+#ifdef VBLEND16
+    x = VSHL32(y, 3);
+    y = VSHL32(y, 6);
+    y = VBLEND16(y, x, 0x33);
+#else
     y = VSHLV32(y, 3, 6, 0, 0);
+#endif
     y = VSHR32(y, 19);
     VSTORE64(v + 4, y);
     return (void) e, true;
