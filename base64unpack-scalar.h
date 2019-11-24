@@ -4,6 +4,50 @@
 
 #define Mask(k) ((1U << k) - 1)
 
+static inline bool unpack10x8c14e4(const char *s, uint32_t *v, unsigned *e)
+{
+#if 0
+    int32_t x, y;
+    x = base64dec3(s + 0);
+    if (x < 0) return false;
+    v[0]  = (x & Mask(4));
+    v[0] |= (x >> 12) << 4;
+    *e    = (x & Mask(4)<<8) >> 8;
+    y = base64dec2(s + 3) | base64dec3(s + 5) << 12;
+    if (y < 0) return false;
+    v[1]  = (y & Mask(10));
+    v[2]  = (y & Mask(20)) >> 10;
+    v[3]  = (y >> 20);
+    y = base64dec2(s + 8) | base64dec3(s + 10) << 12;
+    if (y < 0) return false;
+    v[4]  = (y & Mask(10));
+    v[5]  = (y & Mask(20)) >> 10;
+    v[6]  = (y >> 20);
+    y = base64dec1(s + 13);
+    if (y < 0) return false;
+    v[7]  =  y;
+    v[7] |= (x & Mask(4)<<4) << 2;
+#else
+    int32_t x;
+    x = base64dec2(s + 0) | base64dec2(s + 2) << 12;
+    if (x < 0) return false;
+    *e    = (x & Mask(4));
+    v[0]  = (x & Mask(14)) >> 4;
+    v[1]  = (x >> 14);
+    x = base64dec2(s + 4) | base64dec3(s + 6) << 12;
+    if (x < 0) return false;
+    v[2]  = (x & Mask(10));
+    v[3]  = (x & Mask(20)) >> 10;
+    v[4]  = (x >> 20);
+    x = base64dec2(s + 9) | base64dec3(s + 11) << 12;
+    if (x < 0) return false;
+    v[5]  = (x & Mask(10));
+    v[6]  = (x & Mask(20)) >> 10;
+    v[7]  = (x >> 20);
+#endif
+    return true;
+}
+
 static inline bool unpack11x8c15e2(const char *s, uint32_t *v, unsigned *e)
 {
     int32_t x, y;

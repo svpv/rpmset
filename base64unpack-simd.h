@@ -157,6 +157,42 @@ static inline bool unpack24(const char *s, V32x4 *x)
     return !err;
 }
 
+static inline bool unpack10x8c14e4(const char *s, uint32_t *v, unsigned *e)
+{
+    V32x4 x, y;
+    if (!unpack6(s - 2, &x)) return false;
+#if 0
+    *e = VEXTR32(x, 0) >> 26;
+    x = glue24(glue12(x));
+    y = VSHUF8(x, V8x16_C(
+	    -1, -1, 1, 4, -1, -1, 4, 5,
+	    -1, -1, 6, 8, -1, -1, 8, 9));
+    y = VSHLV32(y, 2, 0, 6, 4);
+    y = VSHR32(y, 22);
+    VSTORE(v, y);
+    y = VSHUF8(x, V8x16_C(
+	    -1, -1,  9, 10, -1, -1, 10, 12,
+	    -1, -1, 13, 14, -1, -1, 14,  2));
+    y = VSHLV32(y, 2, 0, 6, 4);
+#else
+    *e = VEXTR16(x, 1) & Mask(4);
+    x = glue24(glue12(x));
+    y = VSHUF8(x, V8x16_C(
+	    -1, -1, 2, 4, -1, -1, 4, 5,
+	    -1, -1, 5, 6, -1, -1, 6, 8));
+    y = VSHLV32(y, 6, 4, 2, 0);
+    y = VSHR32(y, 22);
+    VSTORE(v, y);
+    y = VSHUF8(x, V8x16_C(
+	    -1, -1,  9, 10, -1, -1, 10, 12,
+	    -1, -1, 12, 13, -1, -1, 13, 14));
+    y = VSHLV32(y, 6, 4, 2, 0);
+#endif
+    y = VSHR32(y, 22);
+    VSTORE(v + 4, y);
+    return true;
+}
+
 static inline bool unpack11x8c15e2(const char *s, uint32_t *v, unsigned *e)
 {
     V32x4 x, y;

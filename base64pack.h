@@ -4,6 +4,55 @@
 
 #define Mask(k) ((1U << k) - 1)
 
+static inline void pack10x8c14e4(const uint32_t *v, char *s, unsigned e)
+{
+#if 0
+    uint32_t x;
+    x = (v[0] & Mask( 4))
+      | (v[7] & Mask(10)) >> 6 << 4
+      | (  e  & Mask( 4)) << 8;
+    s[ 0] = base64[(x & Mask(6))];
+    s[ 1] = base64[(x >> 6)];
+    s[ 2] = base64[(v[0] & Mask(10)) >> 4];
+    s[ 3] = base64[(v[1] & Mask( 6))];
+    s[ 4] = base64[(v[1] & Mask(10)) >> 6 |
+		   (v[2] & Mask( 2)) << 4];
+    s[ 5] = base64[(v[2] & Mask( 8)) >> 2];
+    s[ 6] = base64[(v[2] & Mask(10)) >> 8 |
+		   (v[3] & Mask( 4)) << 2];
+    s[ 7] = base64[(v[3] & Mask(10)) >> 4];
+    s[ 8] = base64[(v[4] & Mask( 6))];
+    s[ 9] = base64[(v[4] & Mask(10)) >> 6 |
+		   (v[5] & Mask( 2)) << 4];
+    s[10] = base64[(v[5] & Mask( 8)) >> 2];
+    s[11] = base64[(v[5] & Mask(10)) >> 8 |
+		   (v[6] & Mask( 4)) << 2];
+    s[12] = base64[(v[6] & Mask(10)) >> 4];
+    s[13] = base64[(v[7] & Mask( 6))];
+#else
+    s[ 0] = base64[(  e  & Mask( 4))      |
+		   (v[0] & Mask( 2)) << 4];
+    s[ 1] = base64[(v[0] & Mask( 8)) >> 2];
+    s[ 2] = base64[(v[0] & Mask(10)) >> 8 |
+		   (v[1] & Mask( 4)) << 2];
+    s[ 3] = base64[(v[1] & Mask(10)) >> 4];
+    s[ 4] = base64[(v[2] & Mask(6))];
+    s[ 5] = base64[(v[2] & Mask(10)) >> 6 |
+		   (v[3] & Mask( 2)) << 4];
+    s[ 6] = base64[(v[3] & Mask( 8)) >> 2];
+    s[ 7] = base64[(v[3] & Mask(10)) >> 8 |
+		   (v[4] & Mask( 4)) << 2];
+    s[ 8] = base64[(v[4] & Mask(10)) >> 4];
+    s[ 9] = base64[(v[5] & Mask(6))];
+    s[10] = base64[(v[5] & Mask(10)) >> 6 |
+		   (v[6] & Mask( 2)) << 4];
+    s[11] = base64[(v[6] & Mask( 8)) >> 2];
+    s[12] = base64[(v[6] & Mask(10)) >> 8 |
+		   (v[7] & Mask( 4)) << 2];
+    s[13] = base64[(v[7] & Mask(10)) >> 4];
+#endif
+}
+
 static inline void pack11x8c15e2(const uint32_t *v, char *s, unsigned e)
 {
     uint32_t x;
