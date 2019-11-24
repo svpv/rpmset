@@ -53,6 +53,30 @@ static inline void pack10x8c14e4(const uint32_t *v, char *s, unsigned e)
 #endif
 }
 
+static inline void pack10x9c15(const uint32_t *v, char *s, unsigned e)
+{
+    uint32_t x;
+    x = (v[0] & Mask(10)) | (v[1] & Mask(10)) << 10 | (v[2] & Mask(10)) << 20;
+    s[ 0] = base64[(x & Mask( 6))];
+    s[ 1] = base64[(x & Mask(12)) >> 6];
+    s[ 2] = base64[(x & Mask(18)) >> 12];
+    s[ 3] = base64[(x & Mask(24)) >> 18];
+    s[ 4] = base64[(x >> 24)];
+    x = (v[3] & Mask(10)) | (v[4] & Mask(10)) << 10 | (v[5] & Mask(10)) << 20;
+    s[ 5] = base64[(x & Mask( 6))];
+    s[ 6] = base64[(x & Mask(12)) >> 6];
+    s[ 7] = base64[(x & Mask(18)) >> 12];
+    s[ 8] = base64[(x & Mask(24)) >> 18];
+    s[ 9] = base64[(x >> 24)];
+    x = (v[6] & Mask(10)) | (v[7] & Mask(10)) << 10 | (v[8] & Mask(10)) << 20;
+    s[10] = base64[(x & Mask( 6))];
+    s[11] = base64[(x & Mask(12)) >> 6];
+    s[12] = base64[(x & Mask(18)) >> 12];
+    s[13] = base64[(x & Mask(24)) >> 18];
+    s[14] = base64[(x >> 24)];
+    (void) e;
+}
+
 static inline void pack11x8c15e2(const uint32_t *v, char *s, unsigned e)
 {
     uint32_t x;
