@@ -69,6 +69,48 @@ static inline bool unpack10x9c15(const char *s, uint32_t *v, unsigned *e)
     return (void) e, true;
 }
 
+static inline bool unpack10x18c30(const char *s, uint32_t *v, unsigned *e)
+{
+    int32_t x0, x1, x2, x3;
+    x0 = base64dec2(s + 0) | base64dec2(s + 2) << 12;
+    if (x0 < 0) return false;
+    x1 = base64dec2(s + 4) | base64dec2(s + 6) << 12;
+    if (x1 < 0) return false;
+    x2 = base64dec2(s + 8) | base64dec2(s + 10) << 12;
+    if (x2 < 0) return false;
+    x3 = base64dec2(s + 12) | base64dec2(s + 14) << 12;
+    if (x3 < 0) return false;
+    v[ 0] = (x0 & Mask(10));
+    v[ 1] = (x1 & Mask(10));
+    v[ 2] = (x2 & Mask(10));
+    v[ 3] = (x3 & Mask(10));
+    v[ 4] = (x0 & Mask(20)) >> 10;
+    v[ 5] = (x1 & Mask(20)) >> 10;
+    v[ 6] = (x2 & Mask(20)) >> 10;
+    v[ 7] = (x3 & Mask(20)) >> 10;
+    int64_t y;
+    y = base64wdec3(s + 16) | base64wdec3(s + 19) << 18;
+    if (y < 0) return false;
+    v[16] = (y & Mask(10));
+    v[17] = (y & Mask(20)) >> 10;
+    y = x0 >> 20 | y >> 20 << 4;
+    v[ 8] = (y & Mask(10));
+    v[12] = (y >> 10);
+    y =  base64wdec2(s + 22) | base64wdec2(s + 24) << 12
+      | (base64wdec2(s + 26) | base64wdec2(s + 28) << 12) << 24;
+    if (y < 0) return false;
+    y = x1 >> 20 | y << 4;
+    v[ 9] = (y & Mask(10));
+    v[13] = (y & Mask(20)) >> 10;
+    y = x2 >> 20 | y >> 20 << 4;
+    v[10] = (y & Mask(10));
+    v[14] = (y & Mask(20)) >> 10;
+    y = x3 >> 20 | y >> 20 << 4;
+    v[11] = (y & Mask(10));
+    v[15] = (y >> 10);
+    return (void) e, true;
+}
+
 static inline bool unpack10x24c40(const char *s, uint32_t *v, unsigned *e)
 {
     int32_t x;

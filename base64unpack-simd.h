@@ -217,6 +217,73 @@ static inline bool unpack10x9c15(const char *s, uint32_t *v, unsigned *e)
     return (void) e, true;
 }
 
+static inline bool unpack10x18c30(const char *s, uint32_t *v, unsigned *e)
+{
+#if 1
+    V32x4 x, y, z;
+    V32x4 mask = VDUP32(Mask(10));
+    if (!unpack6(s, &x)) return false;
+    x = glue12(x);
+    VSTORE(v, VAND(x, mask));
+    x = glue24(x);
+    VSTORE(v + 4, VAND(VSHR32(x, 10), mask));
+    if (!unpack6(s + 14, &y)) return false;
+    y = glue24(glue12(y));
+    z = VSHUF8(y, V8x16_C(
+	    -1,  5,  6, -1, -1,  8,  9, -1,
+	    -1, 10, 12, -1, -1, 13, 14, -1));
+    x = VOR(VSHR32(x, 16), z);
+    VSTORE(v + 8, VAND(VSHR32(x, 4), mask));
+    VSTORE(v + 12, VSHR32(x, 14));
+    y = VSHUF8(y, V8x16_C(
+	    -1, -1,  1,  2, -1, -1,  2,  4,
+	    -1, -1, -1, -1, -1, -1, -1, -1));
+#if VSHLV32_COST >= 2
+    x = VSHL32(y, 2);
+    y = VBLEND16(y, x, 0x33);
+#else
+    y = VSHLV32(y, 2, 0, 0, 0);
+#endif
+    y = VSHR32(y, 22);
+    VSTORE64(v + 16, y);
+#else
+    V32x4 x0, y0, x1, y1;
+    if (!unpack6(s + 00 - 1, &x0)) return false;
+    x0 = glue12(x0);
+    if (!unpack6(s + 15 - 1, &x1)) return false;
+    x1 = glue12(x1);
+    v[0+8] = VEXTR16(x0, 7) >> 2;
+    x0 = glue24(x0);
+    v[9+8] = VEXTR16(x1, 7) >> 2;
+    x1 = glue24(x1);
+    y0 = VSHUF8(x0, V8x16_C(
+	    -1, -1, 0, 1, -1, -1, 2, 4,
+	    -1, -1, 4, 5, -1, -1, 5, 6));
+    y0 = VSHLV32(y0, 0, 6, 4, 2);
+    y0 = VSHR32(y0, 22);
+    VSTORE(v + 0, y0);
+    y1 = VSHUF8(x1, V8x16_C(
+	    -1, -1, 0, 1, -1, -1, 2, 4,
+	    -1, -1, 4, 5, -1, -1, 5, 6));
+    y1 = VSHLV32(y1, 0, 6, 4, 2);
+    y1 = VSHR32(y1, 22);
+    VSTORE(v + 9, y1);
+    y0 = VSHUF8(x0, V8x16_C(
+	    -1, -1,  6,  8, -1, -1,  9, 10,
+	    -1, -1, 10, 12, -1, -1, 12, 13));
+    y0 = VSHLV32(y0, 0, 6, 4, 2);
+    y0 = VSHR32(y0, 22);
+    VSTORE(v + 0 + 4, y0);
+    y1 = VSHUF8(x1, V8x16_C(
+	    -1, -1,  6,  8, -1, -1,  9, 10,
+	    -1, -1, 10, 12, -1, -1, 12, 13));
+    y1 = VSHLV32(y1, 0, 6, 4, 2);
+    y1 = VSHR32(y1, 22);
+    VSTORE(v + 9 + 4, y1);
+#endif
+    return (void) e, true;
+}
+
 static inline bool unpack10x24c40(const char *s, uint32_t *v, unsigned *e)
 {
     V32x4 x0, x1, x2, out;
