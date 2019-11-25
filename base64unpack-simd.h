@@ -33,6 +33,7 @@
 #define VSHL32(x, k) vshlq_n_u32(x, k)
 #define VSHR32(x, k) vshrq_n_u32(x, k)
 
+#define VOR(x, y) vorrq_u32(x, y)
 #define VAND(x, y) vandq_u32(x, y)
 #define VTESTZ(x, y) (vmaxvq_u32(vandq_u32(x, y)) == 0)
 
@@ -93,6 +94,7 @@ static inline V32x4 glue24(V32x4 x)
 
 #define VBLEND16(x, y, c) _mm_blend_epi16(x, y, c)
 
+#define VOR(x, y) _mm_or_si128(x, y)
 #define VAND(x, y) _mm_and_si128(x, y)
 #define VTESTZ(x, y) _mm_testz_si128(x, y)
 
@@ -212,6 +214,32 @@ static inline bool unpack10x9c15(const char *s, uint32_t *v, unsigned *e)
     y = VSHLV32(y, 0, 6, 4, 2);
     y = VSHR32(y, 22);
     VSTORE(v + 4, y);
+    return (void) e, true;
+}
+
+static inline bool unpack10x24c40(const char *s, uint32_t *v, unsigned *e)
+{
+    V32x4 x0, x1, x2, out;
+    V32x4 mask = VDUP32(Mask(10));
+    if (!unpack6(s +  0, &x0)) return false;
+    x0 = glue12(x0);
+    VSTORE(v, VAND(x0, mask));
+    x0 = glue24(x0);
+    VSTORE(v + 4, VAND(VSHR32(x0, 10), mask));
+    if (!unpack6(s + 16, &x1)) return false;
+    out = VOR(VSHR32(x0, 20), VSHL32(x1, 4));
+    x1 = glue12(x1);
+    VSTORE(v + 8, VAND(out, mask));
+    x1 = glue24(x1);
+    VSTORE(v + 12, VAND(VSHR32(x1, 6), mask));
+    if (!unpack6(s + 24, &x2)) return false;
+    x2 = VSHUF8(x2, V8x16_C(
+	     8,  9, -1, -1, 10, 11, -1, -1,
+	    12, 13, -1, -1, 14, 15, -1, -1));
+    out = VOR(VSHR32(x1, 16), VSHL32(x2, 8));
+    x2 = glue12(x2);
+    VSTORE(v + 16, VAND(out, mask));
+    VSTORE(v + 20, VSHR32(x2, 2));
     return (void) e, true;
 }
 

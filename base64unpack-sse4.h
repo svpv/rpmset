@@ -42,41 +42,6 @@ static inline bool unpack9x32c48(const char *s, uint32_t *v, unsigned *e)
     return (void) e, true;
 }
 
-static inline bool unpack10x24c40(const char *s, uint32_t *v, unsigned *e)
-{
-    __m128i x0, x1, x2, out;
-    const __m128i mask = _mm_set1_epi32((1 << 10) - 1);
-    if (!unpack6(s +  0, &x0)) return false;
-    x0 = glue12(x0);
-    out = _mm_and_si128(mask, x0);
-    x0 = glue24(x0);
-    _mm_storeu_si128((void *) &v[0], out);
-    out = _mm_and_si128(mask, _mm_srli_epi32(x0, 10));
-    _mm_storeu_si128((void *) &v[4], out);
-    if (!unpack6(s + 16, &x1)) return false;
-    out = _mm_and_si128(mask,
-	    _mm_or_si128(_mm_srli_epi32(x0, 20),
-			 _mm_slli_epi32(x1, 4)));
-    x1 = glue12(x1);
-    x1 = glue24(x1);
-    _mm_storeu_si128((void *) &v[8], out);
-    out = _mm_and_si128(mask, _mm_srli_epi32(x1, 6));
-    _mm_storeu_si128((void *) &v[12], out);
-    if (!unpack6(s + 24, &x2)) return false;
-    const __m128i unpack16 = _mm_setr_epi8(
-	     8,  9, -1, -1, 10, 11, -1, -1,
-	    12, 13, -1, -1, 14, 15, -1, -1);
-    x2 = _mm_shuffle_epi8(x2, unpack16);
-    out = _mm_and_si128(mask,
-	    _mm_or_si128(_mm_srli_epi32(x1, 16),
-		         _mm_slli_epi32(x2, 8)));
-    x2 = glue12(x2);
-    _mm_storeu_si128((void *) &v[16], out);
-    out = _mm_srli_epi32(x2, 2);
-    _mm_storeu_si128((void *) &v[20], out);
-    return (void) e, true;
-}
-
 static inline bool unpack19x4c13e2o1(const char *s, uint32_t *v, unsigned *e)
 {
     __m128i x;
