@@ -30,6 +30,79 @@ static inline bool unpack9x10c15(const char *s, uint32_t *v, unsigned *e)
     return (void) e, true;
 }
 
+static inline bool unpack9x32c48(const char *s, uint32_t *v, unsigned *e)
+{
+    int32_t x;
+    x = base64dec3(s + 0);
+    if (x < 0) return false;
+    v[ 0] = (x & Mask(9));
+    v[ 4] = (x >> 9);
+    x = base64dec3c(s[3], s[16], s[17]);
+    if (x < 0) return false;
+    v[ 8] = (x & Mask(9));
+    v[12] = (x >> 9);
+    x = base64dec3c(s[18], s[19], s[32]);
+    if (x < 0) return false;
+    v[16] = (x & Mask(9));
+    v[20] = (x >> 9);
+    x = base64dec3(s + 33);
+    if (x < 0) return false;
+    v[24] = (x & Mask(9));
+    v[28] = (x >> 9);
+
+    x = base64dec3(s + 4);
+    if (x < 0) return false;
+    v[ 1] = (x & Mask(9));
+    v[ 5] = (x >> 9);
+    x = base64dec3c(s[7], s[20], s[21]);
+    if (x < 0) return false;
+    v[ 9] = (x & Mask(9));
+    v[13] = (x >> 9);
+    x = base64dec3c(s[22], s[23], s[36]);
+    if (x < 0) return false;
+    v[17] = (x & Mask(9));
+    v[21] = (x >> 9);
+    x = base64dec3(s + 37);
+    if (x < 0) return false;
+    v[25] = (x & Mask(9));
+    v[29] = (x >> 9);
+
+    x = base64dec3(s + 8);
+    if (x < 0) return false;
+    v[ 2] = (x & Mask(9));
+    v[ 6] = (x >> 9);
+    x = base64dec3c(s[11], s[24], s[25]);
+    if (x < 0) return false;
+    v[10] = (x & Mask(9));
+    v[14] = (x >> 9);
+    x = base64dec3c(s[26], s[27], s[40]);
+    if (x < 0) return false;
+    v[18] = (x & Mask(9));
+    v[22] = (x >> 9);
+    x = base64dec3(s + 41);
+    if (x < 0) return false;
+    v[26] = (x & Mask(9));
+    v[30] = (x >> 9);
+
+    x = base64dec3(s + 12);
+    if (x < 0) return false;
+    v[ 3] = (x & Mask(9));
+    v[ 7] = (x >> 9);
+    x = base64dec3c(s[15], s[28], s[29]);
+    if (x < 0) return false;
+    v[11] = (x & Mask(9));
+    v[15] = (x >> 9);
+    x = base64dec3c(s[30], s[31], s[44]);
+    if (x < 0) return false;
+    v[19] = (x & Mask(9));
+    v[23] = (x >> 9);
+    x = base64dec3(s + 45);
+    if (x < 0) return false;
+    v[27] = (x & Mask(9));
+    v[31] = (x >> 9);
+    return (void) e, true;
+}
+
 static inline bool unpack10x8c14e4(const char *s, uint32_t *v, unsigned *e)
 {
 #if 0

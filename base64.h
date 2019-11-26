@@ -32,16 +32,24 @@ static inline uint32_t base64dec1shl12(const char *s)
     return base64d2[c];
 }
 
+static inline uint32_t base64dec2c(unsigned char c0, unsigned char c1)
+{
+    return base64d0[c0] | base64d1[c1];
+}
+
+static inline uint32_t base64dec3c(unsigned char c0, unsigned char c1, unsigned char c2)
+{
+    return base64d0[c0] | base64d1[c1] | base64d2[c2];
+}
+
 static inline uint32_t base64dec2(const char *s)
 {
-    unsigned char c0 = s[0], c1 = s[1];
-    return base64d0[c0] | base64d1[c1];
+    return base64dec2c(s[0], s[1]);
 }
 
 static inline uint32_t base64dec3(const char *s)
 {
-    unsigned char c0 = s[0], c1 = s[1], c2 = s[2];
-    return base64d0[c0] | base64d1[c1] | base64d2[c2];
+    return base64dec3c(s[0], s[1], s[2]);
 }
 
 static inline uint64_t base64wdec2(const char *s)
