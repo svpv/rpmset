@@ -29,6 +29,8 @@
 	vshlq_u32(x, (int32x4_t){ k0, k1, k2, k3 })
 #define VSHRV32(x, k0, k1, k2, k3) \
 	vshlq_u32(x, (int32x4_t){ -(k0), -(k1), -(k2), -(k3) })
+#define VSHRV64(x, k0, k1) \
+	vshlq_u64(x, (int64x2_t){ -(k0), -(k1) })
 #define VSHLV32_COST 1
 
 #define VSHR8(x, k) Vfrom8(vshrq_n_u8(Vto8(x), k))
@@ -93,6 +95,7 @@ static inline V32x4 glue24(V32x4 x)
 
 #define VSHL32(x, k) _mm_slli_epi32(x, k)
 #define VSHR32(x, k) _mm_srli_epi32(x, k)
+#define VSHR64(x, k) _mm_srli_epi64(x, k)
 
 #define VBLEND16(x, y, c) _mm_blend_epi16(x, y, c)
 #define VMOVSIGN32(x) _mm_movemask_ps(_mm_castsi128_ps(x))
@@ -863,4 +866,24 @@ static inline bool unpack27x3c14e3(const char *s, uint32_t *v, unsigned *e)
     *e = (v[3] & 0x80088) * 0x4801000 >> 29;
 #endif
     return true;
+}
+
+static inline bool unpack27x4c18(const char *s, uint32_t *v, unsigned *e)
+{
+    V32x4 x;
+    if (!unpack24(s, &x)) return false;
+    x = VSHUF8(x, V8x16_C(
+	    0, 1,  2,  4,  4,  5,  6,  8,
+	    8, 9, 10, 12, 13, 14, -1, -1));
+#ifdef VSHRV64
+    x = VSHRV64(x, 0, 1);
+#else
+    x = VBLEND16(x, VSHR64(x, 1), 0xf0);
+#endif
+    x = VSHLV32(x, 5, 2, 0, 17);
+    VSTORE(v, VSHR32(x, 5));
+    int32_t lo = base64dec2(s + 16);
+    if (lo < 0) return false;
+    v[3] |= lo;
+    return (void) e, true;
 }
