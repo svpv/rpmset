@@ -887,3 +887,52 @@ static inline bool unpack27x4c18(const char *s, uint32_t *v, unsigned *e)
     v[3] |= lo;
     return (void) e, true;
 }
+
+static inline bool unpack28x3c14(const char *s, uint32_t *v, unsigned *e)
+{
+    V32x4 x;
+    if (!unpack24(s - 2, &x)) return false;
+    x = VSHUF8(x, V8x16_C(
+	     1,  2,  4,  5,  6,  8,  9, 10,
+	    10, 12, 13, 14, -1, -1, -1, -1));
+#if VSHLV32_COST >= 2
+    x = VBLEND16(x, VSHL32(x, 4), 0x0c);
+#else
+    x = VSHLV32(x, 0, 4, 0, 0);
+#endif
+    VSTORE(v, VSHR32(x, 4));
+    return (void) e, true;
+}
+
+static inline bool unpack29x3c15e3o1(const char *s, uint32_t *v, unsigned *e)
+{
+    V32x4 x, y;
+    if (!unpack6(s, &x)) return false;
+    y = glue12(x);
+    x = VSHUF8(x, V8x16_C(
+	    -1, -1, -1, 12, -1, -1, -1, 13,
+	    -1, -1, -1, 14, -1, -1, -1, -1));
+#ifdef VMOVSIGN32
+    *e = VMOVSIGN32(VSHL32(x, 2));
+    y = glue24(y);
+#else
+    y = glue24(y);
+    *e = (y[3] & 0x20820) * 0x1084000 >> 29;
+#endif
+    x = VOR(x, y);
+    VSTORE(v, VAND(x, VDUP32(Mask(29))));
+    return true;
+}
+
+static inline bool unpack30x3c15o1(const char *s, uint32_t *v, unsigned *e)
+{
+    V32x4 x, y;
+    if (!unpack6(s, &x)) return false;
+    y = glue12(x);
+    x = VSHUF8(x, V8x16_C(
+	    -1, -1, -1, 12, -1, -1, -1, 13,
+	    -1, -1, -1, 14, -1, -1, -1, -1));
+    y = glue24(y);
+    VSTORE(v, VOR(x, y));
+    return (void) e, true;
+}
