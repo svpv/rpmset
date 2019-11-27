@@ -27,6 +27,8 @@
 
 #define VSHLV32(x, k0, k1, k2, k3) \
 	vshlq_u32(x, (int32x4_t){ k0, k1, k2, k3 })
+#define VSHRV32(x, k0, k1, k2, k3) \
+	vshlq_u32(x, (int32x4_t){ -(k0), -(k1), -(k2), -(k3) })
 #define VSHLV32_COST 1
 
 #define VSHR8(x, k) Vfrom8(vshrq_n_u8(Vto8(x), k))
@@ -217,7 +219,11 @@ static inline bool unpack7x12c14(const char *s, uint32_t *v, unsigned *e)
 	    2,  3,  4,  5,  5,  6,  7,  8,
 	    9, 10, 11, 12, 12, 13, 14, 15));
     x = glue24(glue12(x));
+#ifdef VSHRV32
+    x = VSHRV32(x, 0, 3, 0, 3);
+#else
     x = VBLEND16(VSHR32(x, 3), x, 0x33);
+#endif
     VSTORE(v + 0, VAND(x, mask));
     VSTORE(v + 4, VAND(VSHR32(x, 7), mask));
     VSTORE(v + 8, VAND(VSHR32(x, 14), mask));
