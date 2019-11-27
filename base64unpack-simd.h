@@ -159,6 +159,29 @@ static inline bool unpack24(const char *s, V32x4 *x)
     return !err;
 }
 
+static inline bool unpack7x24c28(const char *s, uint32_t *v, unsigned *e)
+{
+    V32x4 x, y, out;
+    V32x4 mask = VDUP32(Mask(7));
+    if (!unpack6(s, &x)) return false;
+    x = glue12(x);
+    VSTORE(v + 0, VAND(x, mask));
+    x = glue24(x);
+    VSTORE(v + 4, VAND(VSHR32(x, 7), mask));
+    VSTORE(v + 8, VAND(VSHR32(x, 14), mask));
+    if (!unpack6(s + 12, &y)) return false;
+    y = VSHUF8(y, V8x16_C(
+	     4,  5,  6, -1,  7,  8,  9, -1,
+	    10, 11, 12, -1, 13, 14, 15, -1));
+    out = VOR(VSHR32(x, 21), VSHL32(y, 3));
+    y = glue12(y);
+    VSTORE(v + 12, VAND(out, mask));
+    VSTORE(v + 16, VAND(VSHR32(y, 4), mask));
+    y = glue24(y);
+    VSTORE(v + 20, VSHR32(y, 11));
+    return (void) e, true;
+}
+
 static inline bool unpack8x12c16(const char *s, uint32_t *v, unsigned *e)
 {
     V32x4 x;
