@@ -5,6 +5,35 @@
 #define Mask(k) ((1U << k) - 1)
 #define Wask(k) ((1ULL << k) - 1)
 
+static inline void pack5x19c16e1(const uint32_t *v, char *s, unsigned e)
+{
+    uint64_t x;
+    x = (e & 1) | (v[0] & Mask(5)) << 1
+      | (v[1] & Mask(5)) <<  6 | (v[2] & Mask(5)) << 11 | (v[3] & Mask(5)) << 16
+      | (v[4] & Mask(5)) << 21 | (v[5] & Mask(5)) << 26 | (v[6] & Wask(5)) << 31;
+    s[ 0] = base64[(x      ) & Mask(6)];
+    s[ 1] = base64[(x >>  6) & Mask(6)];
+    s[ 2] = base64[(x >> 12) & Mask(6)];
+    s[ 3] = base64[(x >> 18) & Mask(6)];
+    s[ 4] = base64[(x >> 24) & Mask(6)];
+    s[ 5] = base64[(x >> 30)          ];
+    uint32_t y;
+    y = (v[ 7] & Mask(5))       | (v[ 8] & Mask(5)) <<  5 | (v[ 9] & Mask(5)) << 10
+      | (v[10] & Mask(5)) << 15 | (v[11] & Mask(5)) << 20 | (v[12] & Mask(5)) << 25;
+    s[ 6] = base64[(y      ) & Mask(6)];
+    s[ 7] = base64[(y >>  6) & Mask(6)];
+    s[ 8] = base64[(y >> 12) & Mask(6)];
+    s[ 9] = base64[(y >> 18) & Mask(6)];
+    s[10] = base64[(y >> 24)          ];
+    y = (v[13] & Mask(5))       | (v[14] & Mask(5)) <<  5 | (v[15] & Mask(5)) << 10
+      | (v[16] & Mask(5)) << 15 | (v[17] & Mask(5)) << 20 | (v[18] & Mask(5)) << 25;
+    s[11] = base64[(y      ) & Mask(6)];
+    s[12] = base64[(y >>  6) & Mask(6)];
+    s[13] = base64[(y >> 12) & Mask(6)];
+    s[14] = base64[(y >> 18) & Mask(6)];
+    s[15] = base64[(y >> 24)          ];
+}
+
 static inline void pack6x16c16(const uint32_t *v, char *s, unsigned e)
 {
     s[ 0] = base64[v[ 0] & Mask(6)];
