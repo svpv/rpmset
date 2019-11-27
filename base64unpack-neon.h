@@ -6,22 +6,6 @@
 #define Mask(k) ((1U << k) - 1)
 #include "base64unpack-simd.h"
 
-static inline bool unpack23x4c16e4(const char *s, uint32_t *v, unsigned *e)
-{
-    uint8x16_t x6;
-    bool ok = unpack6(s, &x6);
-    const uint8x16_t lo6 = {
-	     0,  4,  8, 12, -1, -1, -1, -1,
-	    -1, -1, -1, -1, -1, -1, -1, -1 };
-    uint32x4_t x, y;
-    y = vreinterpretq_u32_u8(vqtbl1q_u8(x6, lo6));
-    x = glue24(glue12(x6));
-    *e = (y[0] & 0x1010101) * 0x10204080 >> 28;
-    x = vshrq_n_u32(x, 1);
-    vst1q_u32(v, x);
-    return ok;
-}
-
 static inline bool unpack24x4c16(const char *s, uint32_t *v, unsigned *e)
 {
     uint32x4_t x;

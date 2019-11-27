@@ -95,6 +95,7 @@ static inline V32x4 glue24(V32x4 x)
 #define VSHR32(x, k) _mm_srli_epi32(x, k)
 
 #define VBLEND16(x, y, c) _mm_blend_epi16(x, y, c)
+#define VMOVSIGN32(x) _mm_movemask_ps(_mm_castsi128_ps(x))
 
 #define VOR(x, y) _mm_or_si128(x, y)
 #define VAND(x, y) _mm_and_si128(x, y)
@@ -749,5 +750,25 @@ static inline bool unpack22x4c15e2(const char *s, uint32_t *v, unsigned *e)
 	    9, 10, 12, -1, 13, 14, 2, -1));
     x = VSHLV32(x, 4, 6, 8, 10);
     VSTORE(v, VSHR32(x, 10));
+    return true;
+}
+
+static inline bool unpack23x4c16e4(const char *s, uint32_t *v, unsigned *e)
+{
+    V32x4 x, y;
+    if (!unpack6(s, &x)) return false;
+#ifdef VMOVSIGN32
+    y = VSHL32(x, 31);
+    x = glue12(x);
+    *e = VMOVSIGN32(y);
+#else
+    y = VSHUF8(x, V8x16_C(
+	     0,  4,  8, 12, -1, -1, -1, -1,
+	    -1, -1, -1, -1, -1, -1, -1, -1));
+    x = glue12(x);
+    *e = (y[0] & 0x1010101) * 0x10204080 >> 28;
+#endif
+    x = glue24(x);
+    VSTORE(v, VSHR32(x, 1));
     return true;
 }
