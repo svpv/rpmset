@@ -646,3 +646,32 @@ static inline bool unpack18x5c15(const char *s, uint32_t *v, unsigned *e)
     VSTORE(v + 1, x);
     return (void) e, true;
 }
+
+static inline bool unpack19x4c13e2o1(const char *s, uint32_t *v, unsigned *e)
+{
+    V32x4 x;
+    if (!unpack6(s - 2, &x)) return false;
+    *e = VEXTR16(x, 1) & Mask(2);
+    x = glue24(glue12(x));
+    x = VSHUF8(x, V8x16_C(
+	     1, 2, 4,  5, -1,  5,  6,  8,
+	    -1, 8, 9, 10, 10, 12, 13, 14));
+    x = VSHLV32(x, 7, 4, 1, 6);
+    VSTORE(v, VSHR32(x, 13));
+    return true;
+}
+
+static inline bool unpack19x5c16e1(const char *s, uint32_t *v, unsigned *e)
+{
+    V32x4 x;
+    if (!unpack6(s, &x)) return false;
+    *e = VEXTR32(x, 0) & 1;
+    x = glue24(glue12(x));
+    v[0] = (VEXTR32(x, 0) >> 1) & Mask(19);
+    x = VSHUF8(x, V8x16_C(
+	    -1, 2,  4,  5,  5,  6,  8,  9,
+	    -1, 9, 10, 12, -1, 12, 13, 14));
+    x = VSHLV32(x, 1, 6, 3, 0);
+    VSTORE(v + 1, VSHR32(x, 13));
+    return true;
+}
