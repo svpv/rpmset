@@ -6,56 +6,6 @@
 #define Mask(k) ((1U << k) - 1)
 #include "base64unpack-simd.h"
 
-static inline bool unpack20x4c14e4(const char *s, uint32_t *v, unsigned *e)
-{
-    __m128i x, y;
-    if (!unpack6(s - 2, &x)) return false;
-    *e = _mm_extract_epi16(x, 1) & Mask(4);
-    const __m128i shuf = _mm_setr_epi8(
-	    -1, 2,  4,  5, -1,  5,  6,  8,
-	    -1, 9, 10, 12, -1, 12, 13, 14);
-    x = glue24(glue12(x));
-    x = _mm_shuffle_epi8(x, shuf);
-    y = _mm_slli_epi32(x, 4);
-    x = _mm_blend_epi16(x, y, 0x33);
-    x = _mm_srli_epi32(x, 12);
-    _mm_storeu_si128((void *) v, x);
-    return true;
-}
-
-static inline bool unpack21x4c14(const char *s, uint32_t *v, unsigned *e)
-{
-    __m128i x, y;
-    if (!unpack6(s - 2, &x)) return false;
-    const __m128i mask = _mm_set1_epi32((1 << 21) - 1);
-    const __m128i shuf = _mm_setr_epi8(
-	    2,  3,  4,  5,  5,  6,  7,  8,
-	    9, 10, 11, 12, 12, 13, 14, 15);
-    x = _mm_shuffle_epi8(x, shuf);
-    x = glue24(glue12(x));
-    y = _mm_and_si128(x, mask);
-    x = _mm_srli_epi32(x, 3);
-    x = _mm_blend_epi16(x, y, 0x33);
-    _mm_storeu_si128((void *) v, x);
-    return (void) e, true;
-}
-
-static inline bool unpack22x4c15e2(const char *s, uint32_t *v, unsigned *e)
-{
-    __m128i x;
-    if (!unpack6(s - 1, &x)) return false;
-    *e = _mm_cvtsi128_si32(x) >> 28;
-    x = glue24(glue12(x));
-    const __m128i shuf = _mm_setr_epi8(
-	    0,  1,  4,  5,  5,  6, 8,  9,
-	    9, 10, 12, -1, 13, 14, 2, -1);
-    x = _mm_shuffle_epi8(x, shuf);
-    x = _mm_mullo_epi32(x, _mm_setr_epi32(16, 64, 256, 1024));
-    x = _mm_srli_epi32(x, 10);
-    _mm_storeu_si128((void *) v, x);
-    return true;
-}
-
 static inline bool unpack23x4c16e4(const char *s, uint32_t *v, unsigned *e)
 {
     __m128i x, y;
