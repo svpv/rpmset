@@ -772,3 +772,47 @@ static inline bool unpack23x4c16e4(const char *s, uint32_t *v, unsigned *e)
     VSTORE(v, VSHR32(x, 1));
     return true;
 }
+
+static inline bool unpack24x4c16(const char *s, uint32_t *v, unsigned *e)
+{
+    V32x4 x;
+    if (!unpack24(s, &x)) return false;
+    VSTORE(v, x);
+    return (void) e, true;
+}
+
+static inline bool unpack25x3c13e3o1(const char *s, uint32_t *v, unsigned *e)
+{
+    V32x4 x;
+    if (!unpack24(s - 2, &x)) return false;
+    x = VSHUF8(x, V8x16_C(
+	     1,  2,  4,  5,  5, 6, 8,  9,
+	    10, 12, 13, 14, 14, 5, 9, -1));
+#ifdef VMOVSIGN32
+    x = VSHLV32(x, 2, 0, 6, 0);
+    *e = VMOVSIGN32(x);
+    x = VSHR32(x, 6);
+    VSTORE(v, VAND(x, VDUP32(Mask(25))));
+#else
+    x = VSHLV32(x, 3, 1, 7, 7);
+    VSTORE(v, VSHR32(x, 7));
+    *e = (v[3] & 0x802002) * 0x40010080 >> 29;
+#endif
+    return true;
+}
+
+static inline bool unpack25x4c17e2(const char *s, uint32_t *v, unsigned *e)
+{
+    V32x4 x;
+    if (!unpack24(s, &x)) return false;
+    x = VSHUF8(x, V8x16_C(
+	    0, 1,  2,  4,  4,  5,  6,  8,
+	    8, 9, 10, 12, 12, 13, 14, -1));
+    x = VSHLV32(x, 7, 6, 5, 4);
+    VSTORE(v, VSHR32(x, 7));
+    int32_t hi = base64dec1(s + 16);
+    if (hi < 0) return false;
+    v[3] |= (hi & Mask(4)) << 21;
+    *e = (hi >> 4);
+    return true;
+}
