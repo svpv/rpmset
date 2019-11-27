@@ -6,56 +6,6 @@
 #define Mask(k) ((1U << k) - 1)
 #include "base64unpack-simd.h"
 
-static inline bool unpack26x3c13o1(const char *s, uint32_t *v, unsigned *e)
-{
-    __m128i x;
-    if (!unpack24(s - 2, &x)) return false;
-    const __m128i shuf = _mm_setr_epi8(
-	     1,  2,  4,  5,  5,  6,  8,  9,
-	    10, 12, 13, 14, -1, -1, -1, -1);
-    x = _mm_shuffle_epi8(x, shuf);
-    x = _mm_mullo_epi32(x, _mm_setr_epi32(4, 1, 64, 0));
-    x = _mm_srli_epi32(x, 6);
-    _mm_storeu_si128((void *) v, x);
-    return (void) e, true;
-}
-
-static inline bool unpack26x4c18e4(const char *s, uint32_t *v, unsigned *e)
-{
-    __m128i x;
-    if (!unpack24(s, &x)) return false;
-    const __m128i shuf = _mm_setr_epi8(
-	    0, 1,  2,  4,  4,  5,  6,  8,
-	    8, 9, 10, 12, 12, 13, 14, -1);
-    x = _mm_shuffle_epi8(x, shuf);
-    x = _mm_mullo_epi32(x, _mm_setr_epi32(64, 16, 4, 1));
-    x = _mm_srli_epi32(x, 6);
-    _mm_storeu_si128((void *) v, x);
-    int32_t hi = base64dec2(s + 16);
-    if (hi < 0) return false;
-    v[3] |= (hi & Mask(8)) << 18;
-    *e = (hi >> 8);
-    return true;
-}
-
-static inline bool unpack27x3c14e3(const char *s, uint32_t *v, unsigned *e)
-{
-    __m128i x, y;
-    if (!unpack24(s - 2, &x)) return false;
-    const __m128i mask = _mm_set1_epi32((1 << 27) - 1);
-    const __m128i shuf = _mm_setr_epi8(
-	     1,  2,  4,  5,  6,  8,  9, 10,
-	    10, 12, 13, 14, -1, -1, -1, -1);
-    x = _mm_shuffle_epi8(x, shuf);
-    y = _mm_slli_epi32(x, 4);
-    x = _mm_blend_epi16(x, y, 8 + 4);
-    *e = _mm_movemask_ps(_mm_castsi128_ps(x));
-    x = _mm_srli_epi32(x, 4);
-    x = _mm_and_si128(x, mask);
-    _mm_storeu_si128((void *) v, x);
-    return true;
-}
-
 static inline bool unpack27x4c18(const char *s, uint32_t *v, unsigned *e)
 {
     __m128i x, y;
