@@ -35,7 +35,8 @@
 #define VSHRV32(x, k0, k1, k2, k3) \
 	vshlq_u32(x, (int32x4_t){ -(k0), -(k1), -(k2), -(k3) })
 #define VSHRV64(x, k0, k1) \
-	vshlq_u64(x, (int64x2_t){ -(k0), -(k1) })
+	vreinterpretq_u32_u64(vshlq_u64(vreinterpretq_u64_u32(x), \
+					(int64x2_t){ -(k0), -(k1) }))
 #define VSHLV32_COST 1
 
 #define VSHR8(x, k) Vfrom8(vshrq_n_u8(Vto8(x), k))
