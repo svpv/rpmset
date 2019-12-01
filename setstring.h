@@ -1,6 +1,12 @@
 #pragma once
+#ifndef __cplusplus
 #include <stddef.h>
 #include <stdint.h>
+#else
+#include <cstddef>
+#include <cstdint>
+extern "C" {
+#endif
 
 /**
  * Initialize encoding.  The caller requests to encode an array v[n] of hash
@@ -54,3 +60,7 @@ static inline size_t setstring_decode(const char *s, size_t len, int bpp, uint32
     unsigned m = s[1] - 'A';
     return setstring_dectab[m](s, len, bpp, v);
 }
+
+#ifdef __cplusplus
+}
+#endif
