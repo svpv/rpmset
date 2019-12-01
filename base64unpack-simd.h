@@ -1,3 +1,8 @@
+#include <stdint.h>
+#include <stdbool.h>
+#include "base64.h"
+#define Mask(k) ((1U << k) - 1)
+
 #if defined(__ARM_NEON) || defined(__aarch64__)
 #include <arm_neon.h>
 
