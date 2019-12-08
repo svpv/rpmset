@@ -58,3 +58,23 @@ size_t setstring_encinit(const uint32_t v[], size_t n, int bpp, int *m)
     size_t maxbits = enc_maxbits(v, n, abs(*m));
     return 2 + (maxbits + 5) / 6 + 1;
 }
+
+// Simulate the encoding to get the resulting string length.
+static size_t enc_dryrun(const uint32_t v[], size_t n, int m)
+{
+    size_t bits = n * (m + 1);
+    const uint32_t *v_end = v + n;
+    uint32_t v0, v1, dv;
+    v0 = dv = *v++;
+    while (1) {
+	bits += dv >> m;
+	if (v == v_end)
+	    break;
+	v1 = *v++;
+	if (v0 >= v1)
+	    return 0;
+	dv = v1 - v0 - 1;
+	v0 = v1;
+    }
+    return (bits + 5) / 6;
+}
