@@ -54,7 +54,7 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
 	if (unlikely(!ok))
 	    return 0;
 	if (ke) {
-	    b |= e << bfill;
+	    b = (b << ke) | e;
 	    bfill += ke;
 	}
 	s += ks, len -= ks;
@@ -78,7 +78,7 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
 		    bfill = 12, s += 2, len -= 2;
 		}
 	    }
-	    uint32_t z = __builtin_clz(b);
+	    uint32_t z = __builtin_ctz(b);
 	    q += z++;
 	    b >>= z, bfill -= z;
 	    v0 += v[i] + (q << m) + 1;
@@ -99,7 +99,7 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
 		return 0;
 	    bfill = 6, s++, len--;
 	}
-	uint32_t z = __builtin_clz(b);
+	uint32_t z = __builtin_ctz(b);
 	q += z++;
 	b >>= z, bfill -= z;
 	uint32_t r = b;

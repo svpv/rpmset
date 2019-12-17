@@ -1,5 +1,7 @@
 #include <stdlib.h>
+#include <assert.h>
 #include "setstring.h"
+#include "base64.h"
 
 static inline int log2i(uint32_t x)
 {
@@ -59,7 +61,8 @@ size_t setstring_encinit(const uint32_t v[], size_t n, int bpp, int *m)
     return 2 + (maxbits + 5) / 6 + 1;
 }
 
-// Simulate the encoding to get the resulting string length.
+// Simulate the encoding to get the resulting string length (not including
+// the leading bM characters).
 static size_t enc_dryrun(const uint32_t v[], size_t n, int m)
 {
     size_t bits = n * (m + 1);
@@ -77,4 +80,128 @@ static size_t enc_dryrun(const uint32_t v[], size_t n, int m)
 	v0 = v1;
     }
     return (bits + 5) / 6;
+}
+
+// The same as dec_xlen.
+static inline size_t enc_xlen(int m, unsigned kn, uint32_t v0, uint32_t vmax)
+{
+    unsigned n = kn - 1;
+    size_t bits1 = n * (m + 1);
+    size_t bits2 = (vmax - v0 - n) >> m;
+    return (bits1 + bits2 + 5) / 6;
+}
+
+// To interleave SIMD blocks and the q-bitstream properly, we maintain
+// a small queue of delta blocks.
+struct Q {
+    unsigned start, end;
+#define QN 256
+    uint32_t v[QN];
+};
+
+#define Q_init(Q) (Q)->start = (Q)->end = 0
+#define Q_empty(Q) ((Q)->start == (Q)->end)
+
+static inline uint32_t *Q_push(struct Q *Q, unsigned n)
+{
+    uint32_t *v = Q->v + Q->end;
+    Q->end += n;
+    if (Q->end > QN) {
+	v = Q->v;
+	Q->end = n;
+	assert(Q->end <= Q->start);
+    }
+    return v;
+}
+
+static inline uint32_t *Q_pop(struct Q *Q, unsigned n)
+{
+    uint32_t *v = Q->v + Q->start;
+    Q->start += n;
+    if (Q->start > QN) {
+	v = Q->v;
+	Q->start = n;
+    }
+    return v;
+}
+
+static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
+	void (*pack)(const uint32_t *v, char *s, unsigned e),
+	unsigned kn, unsigned ks, unsigned ke, unsigned ko)
+{
+    size_t len = enc_dryrun(v, n, m);
+    if (len == 0)
+	return 0;
+    const uint32_t *v_end = v + n;
+    const char *s_start = s;
+    *s++ = bpp - 7 + 'a';
+    *s++ = m - 5 + 'A';
+    uint32_t v0 = (uint32_t) -1;
+    uint32_t vmax = (bpp == 32) ? UINT32_MAX : (1U << bpp) - 1;
+    uint64_t b = 0;
+    unsigned bfill = 0;
+    unsigned bcnt = 0; // how many q-parts in b
+    struct Q Q; Q_init(&Q);
+    int bal = 0; // balance between SIMD blocks and the q-bitstream
+    unsigned ctl = 0; // loop control correction, see below
+    while (len - ctl > enc_xlen(m, kn, v0, vmax) && len - ctl >= ks + ko) {
+	// Make a block of deltas.
+	uint32_t *dv = Q_push(&Q, kn);
+	for (unsigned i = 0; i < kn; i++) {
+	    uint32_t v1 = v[i];
+	    dv[i] = v1 - v0 - 1;
+	    v0 = v1;
+	}
+	v += kn;
+	len -= ks; // not yet written, but must be accounted for
+#define FLUSH							\
+	do {							\
+	    while (bal >= 0 && bfill >= ke && !Q_empty(&Q)) {	\
+		uint32_t *odv = Q_pop(&Q, kn);			\
+		pack(odv, s, b);				\
+		s += ks;					\
+		b >>= ke, bfill -= ke;				\
+		bal -= kn;					\
+	    }							\
+	    while (len >= 2 && bfill >= 12) {			\
+		s[0] = base64[(b>>0)&63];			\
+		s[1] = base64[(b>>6)&63];			\
+		b >>= 12, bfill -= 12;				\
+		s += 2, len -= 2;				\
+		bal += bcnt, bcnt = 0;				\
+	    }							\
+	} while (0)
+	// Write the bitstream and flush the blocks along the way.
+	for (unsigned i = 0; i < kn; i++) {
+	    bfill += dv[i] >> m;
+	    FLUSH;
+	    b |= (1U << bfill);
+	    bfill++, bcnt++;
+	    FLUSH;
+	}
+	// The condition in the loop control must be the same as in the
+	// decoder.  In the decoder, the condition is checked after all
+	// the necessary q-bits from the previous iteration have been read.
+	// Therefore, we must account for the pending q-bits.
+	ctl = bfill ? (len > 1 ? 2 : 1) : 0;
+    }
+    uint32_t rmask = (1U << m) - 1;
+    while (v < v_end) {
+	uint32_t v1 = *v++;
+	uint32_t dv = v1 - v0 - 1;
+	v0 = v1;
+	bfill += dv >> m;
+	FLUSH;
+	b |= (1U << bfill);
+	bfill++, bal++;
+	dv &= rmask;
+	b |= (uint64_t) dv << bfill;
+	bfill += m;
+	FLUSH;
+    }
+    if (bfill > 0) *s++ = base64[(b>>0)&63], len--;
+    if (bfill > 6) *s++ = base64[(b>>6)&63], len--;
+    assert(len == 0);
+    *s = '\0';
+    return s - s_start;
 }
