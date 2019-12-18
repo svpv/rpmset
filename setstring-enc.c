@@ -205,3 +205,62 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
     *s = '\0';
     return s - s_start;
 }
+
+#include "base64pack.h"
+
+#define Routine(pack, m, kn, ks, ke, ko) \
+static size_t encode##m(const uint32_t v[], size_t n, int bpp, char *s) \
+{ return enc1(v, n, bpp, m, s, pack, kn, ks, ke, ko); }
+
+#define Routines \
+    Routine(pack5x19c16e1,  5, 19, 16, 1, 0) \
+    Routine(pack6x16c16,    6, 16, 16, 0, 0) \
+    Routine(pack7x12c14,    7, 12, 14, 0, 0) \
+    Routine(pack8x12c16,    8, 12, 16, 0, 0) \
+    Routine(pack9x10c15,    9, 10, 15, 0, 0) \
+    Routine(pack10x9c15,   10,  9, 15, 0, 0) \
+    Routine(pack11x8c15e2, 11,  8, 15, 2, 0) \
+    Routine(pack12x8c16,   12,  8, 16, 0, 0) \
+    Routine(pack13x6c13,   13,  6, 13, 0, 1) \
+    Routine(pack14x6c14,   14,  6, 14, 0, 0) \
+    Routine(pack15x6c15,   15,  6, 15, 0, 0) \
+    Routine(pack16x6c16,   16,  6, 16, 0, 0) \
+    Routine(pack17x6c17,   17,  6, 17, 0, 0) \
+    Routine(pack18x5c15,   18,  5, 15, 0, 0) \
+    Routine(pack19x5c16e1, 19,  5, 16, 1, 0) \
+    Routine(pack20x4c14e4, 20,  4, 14, 4, 0) \
+    Routine(pack21x4c14,   21,  4, 14, 0, 0) \
+    Routine(pack22x4c15e2, 22,  4, 15, 2, 0) \
+    Routine(pack23x4c16e4, 23,  4, 16, 4, 0) \
+    Routine(pack24x4c16,   24,  4, 16, 0, 0) \
+    Routine(pack25x4c17e2, 25,  4, 17, 2, 0) \
+    Routine(pack26x3c13,   26,  3, 13, 0, 1) \
+    Routine(pack27x3c14e3, 27,  3, 14, 3, 0) \
+    Routine(pack28x3c14,   28,  3, 14, 0, 0) \
+    Routine(pack29x3c15e3, 29,  3, 15, 3, 1) \
+    Routine(pack30x3c15,   30,  3, 15, 0, 1) \
+
+Routines
+
+#undef Routine
+#define Routine(pack, m, kn, ks, ke, ko) encode##m,
+
+typedef size_t (*encfunc_t)(const uint32_t v[], size_t n, int bpp, char *s);
+static const encfunc_t enctab[26] = { Routines };
+
+size_t setstring_encode(const uint32_t v[], size_t n, int bpp, int m, char *s)
+{
+    if (m >= 0)
+	return enctab[m-5](v, n, bpp, s);
+    // In case of a tie, prefer higher m.  This will improve the decoder's
+    // memory footprint: estimating that each (m + 1) bits can make a value,
+    // the decoder will request smaller chunks.
+    size_t len1 = enctab[-m-5-1](v, n, bpp, s);
+    if (len1 == 0)
+	return 0;
+    size_t len2 = enctab[-m-5-0](v, n, bpp, s);
+    assert(len2);
+    if (len2 <= len1)
+	return len2;
+    return enctab[-m-1](v, n, bpp, s);
+}
