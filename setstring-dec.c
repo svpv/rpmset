@@ -123,3 +123,41 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
 	return 0;
     return v - v_start;
 }
+
+#define Routine(unpack, m, kn, ks, ke, ko) \
+static size_t decode##m(const char *s, size_t len, int bpp, uint32_t v[]) \
+{ return dec1(s, len, bpp, m, v, unpack, kn, ks, ke, ko); }
+
+#define Routines \
+    Routine(unpack5x19c16e1,    5, 19, 16, 1, 0) \
+    Routine(unpack6x16c16,      6, 16, 16, 0, 0) \
+    Routine(unpack7x12c14,      7, 12, 14, 0, 0) \
+    Routine(unpack8x12c16,      8, 12, 16, 0, 0) \
+    Routine(unpack9x10c15,      9, 10, 15, 0, 0) \
+    Routine(unpack10x9c15,     10,  9, 15, 0, 0) \
+    Routine(unpack11x8c15e2,   11,  8, 15, 2, 0) \
+    Routine(unpack12x8c16,     12,  8, 16, 0, 0) \
+    Routine(unpack13x6c13o1,   13,  6, 13, 0, 1) \
+    Routine(unpack14x6c14,     14,  6, 14, 0, 0) \
+    Routine(unpack15x6c15,     15,  6, 15, 0, 0) \
+    Routine(unpack16x6c16,     16,  6, 16, 0, 0) \
+    Routine(unpack17x6c17,     17,  6, 17, 0, 0) \
+    Routine(unpack18x5c15,     18,  5, 15, 0, 0) \
+    Routine(unpack19x5c16e1,   19,  5, 16, 1, 0) \
+    Routine(unpack20x4c14e4,   20,  4, 14, 4, 0) \
+    Routine(unpack21x4c14,     21,  4, 14, 0, 0) \
+    Routine(unpack22x4c15e2,   22,  4, 15, 2, 0) \
+    Routine(unpack23x4c16e4,   23,  4, 16, 4, 0) \
+    Routine(unpack24x4c16,     24,  4, 16, 0, 0) \
+    Routine(unpack25x4c17e2,   25,  4, 17, 2, 0) \
+    Routine(unpack26x3c13o1,   26,  3, 13, 0, 1) \
+    Routine(unpack27x3c14e3,   27,  3, 14, 3, 0) \
+    Routine(unpack28x3c14,     28,  3, 14, 0, 0) \
+    Routine(unpack29x3c15e3o1, 29,  3, 15, 3, 1) \
+    Routine(unpack30x3c15o1,   30,  3, 15, 0, 1) \
+
+Routines
+
+#undef Routine
+#define Routine(unpack, m, kn, ks, ke, ko) decode##m,
+const setstring_decfunc_t setstring_dectab[26] = { Routines };
