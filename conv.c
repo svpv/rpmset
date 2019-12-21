@@ -20,11 +20,11 @@ uint32_t *decode(const char *s, size_t len, size_t *pn, int *pbpp)
 
 void recheck(const char *ss, size_t len, const uint32_t *v, size_t n)
 {
-    int bpp, m;
-    size_t n1 = setstring_decodeInit(ss, len, &bpp, &m);
+    int bpp;
+    size_t n1 = setstring_decinit(ss, len, &bpp);
     assert(n1 >= n);
     uint32_t *w = malloc(n1 * 4);
-    n1 = setstring_decode(ss, len, bpp, m, w);
+    n1 = setstring_decode(ss, len, bpp, w);
     assert(n1 == n);
     assert(memcmp(v, w, n * 4) == 0);
     free(w);
@@ -37,7 +37,7 @@ void conv(const char *s, size_t len, char nl)
     size_t n;
     int bpp, m;
     uint32_t *v = decode(s, len, &n, &bpp);
-    len = setstring_encodeInit(v, n, bpp, &m);
+    len = setstring_encinit(v, n, bpp, &m);
     assert(len > 0);
     char *ss = malloc(len + 4);
     memcpy(ss, "set:", 4);
