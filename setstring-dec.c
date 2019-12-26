@@ -54,7 +54,7 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
 	if (unlikely(!ok))
 	    return 0;
 	if (ke) {
-	    b = (b << ke) | e;
+	    b |= e << bfill;
 	    bfill += ke;
 	}
 	s += ks, len -= ks;
@@ -88,7 +88,7 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
     }
     // Read the rest from the bitstream.
     uint32_t rmask = (1U << m) - 1;
-    while (len) {
+    while (len || b) {
 	uint32_t q = 0;
 	while (b == 0) {
 	    q += bfill;

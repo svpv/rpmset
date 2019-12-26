@@ -102,6 +102,13 @@ struct Q {
 #define Q_init(Q) (Q)->start = (Q)->end = 0
 #define Q_empty(Q) ((Q)->start == (Q)->end)
 
+static inline unsigned Q_nblock(struct Q *Q, unsigned n)
+{
+    unsigned k = Q->end - Q->start;
+    k += (Q->end < Q->start) * QN;
+    return k / n;
+}
+
 static inline uint32_t *Q_push(struct Q *Q, unsigned n)
 {
     uint32_t *v = Q->v + Q->end;
@@ -144,6 +151,30 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
     struct Q Q; Q_init(&Q);
     int bal = 0; // balance between SIMD blocks and the q-bitstream
     unsigned ctl = 0; // loop control correction, see below
+
+#define FLUSH1							\
+    do {							\
+	while (bal >= 0 && bfill >= ke && !Q_empty(&Q)) {	\
+	    uint32_t *odv = Q_pop(&Q, kn);			\
+	    pack(odv, s, b);					\
+	    s += ks;						\
+	    if (ke) {						\
+		b >>= ke, bfill -= ke;				\
+		bal += bcnt, bcnt = 0;				\
+	    }							\
+	    bal -= kn;						\
+	}							\
+	if (len >= 2 && bfill >= 12) {				\
+	    s[0] = base64[(b>>0)&63];				\
+	    s[1] = base64[(b>>6)&63];				\
+	    b >>= 12, bfill -= 12;				\
+	    s += 2, len -= 2;					\
+	    bal += bcnt, bcnt = 0;				\
+	    continue;						\
+	}							\
+	break;							\
+    } while (1)
+
     while (len - ctl > enc_xlen(m, kn, v0, vmax) && len - ctl >= ks + ko) {
 	// Make a block of deltas.
 	uint32_t *dv = Q_push(&Q, kn);
@@ -154,50 +185,81 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 	}
 	v += kn;
 	len -= ks; // not yet written, but must be accounted for
-#define FLUSH							\
-	do {							\
-	    while (bal >= 0 && bfill >= ke && !Q_empty(&Q)) {	\
-		uint32_t *odv = Q_pop(&Q, kn);			\
-		pack(odv, s, b);				\
-		s += ks;					\
-		b >>= ke, bfill -= ke;				\
-		bal -= kn;					\
-	    }							\
-	    while (len >= 2 && bfill >= 12) {			\
-		s[0] = base64[(b>>0)&63];			\
-		s[1] = base64[(b>>6)&63];			\
-		b >>= 12, bfill -= 12;				\
-		s += 2, len -= 2;				\
-		bal += bcnt, bcnt = 0;				\
-	    }							\
-	} while (0)
 	// Write the bitstream and flush the blocks along the way.
 	for (unsigned i = 0; i < kn; i++) {
 	    bfill += dv[i] >> m;
-	    FLUSH;
+	    FLUSH1;
 	    b |= (1U << bfill);
 	    bfill++, bcnt++;
-	    FLUSH;
+	    FLUSH1;
 	}
 	// The condition in the loop control must be the same as in the
 	// decoder.  In the decoder, the condition is checked after all
 	// the necessary q-bits from the previous iteration have been read.
 	// Therefore, we must account for the pending q-bits.
-	ctl = bfill ? (len > 1 ? 2 : 1) : 0;
+	ctl = (bfill > ke * Q_nblock(&Q, kn)) ? (len > 1 ? 2 : 1) : 0;
     }
+
+    assert(bal + bcnt - Q_nblock(&Q, kn) * kn == 0);
+    if (Q_empty(&Q))
+	bal = 0;
+
+#define FLUSH2 \
+    do {							\
+	if (bal < 0) {						\
+	    if (bfill < 12)					\
+		break;						\
+	    s[0] = base64[(b>>0)&63];				\
+	    s[1] = base64[(b>>6)&63];				\
+	    b >>= 12, bfill -= 12;				\
+	    s += 2, len -= 2;					\
+	    bal = 0;						\
+	}							\
+	while (bfill >= ke && !Q_empty(&Q)) {			\
+	    uint32_t *odv = Q_pop(&Q, kn);			\
+	    pack(odv, s, b);					\
+	    s += ks;						\
+	    b >>= ke, bfill -= ke;				\
+	}							\
+	while (bfill >= 12 && Q_empty(&Q)) {			\
+	    s[0] = base64[(b>>0)&63];				\
+	    s[1] = base64[(b>>6)&63];				\
+	    b >>= 12, bfill -= 12;				\
+	    s += 2, len -= 2;					\
+	}							\
+    } while (0)
+
     uint32_t rmask = (1U << m) - 1;
     while (v < v_end) {
 	uint32_t v1 = *v++;
 	uint32_t dv = v1 - v0 - 1;
 	v0 = v1;
 	bfill += dv >> m;
-	FLUSH;
+	FLUSH2;
 	b |= (1U << bfill);
-	bfill++, bal++;
+	bfill++;
 	dv &= rmask;
 	b |= (uint64_t) dv << bfill;
 	bfill += m;
-	FLUSH;
+	FLUSH2;
+    }
+
+    if (!Q_empty(&Q)) {
+	if (bal < 0) {
+	    assert(bfill > 6);
+	    s[0] = base64[(b>>0)&63];
+	    s[1] = base64[(b>>6)&63];
+	    s += 2, len -= 2;
+	    b = 0, bfill = 0;
+	    bal = 0;
+	}
+	do {
+	    uint32_t *odv = Q_pop(&Q, kn);
+	    pack(odv, s, b);
+	    s += ks;
+	    b >>= ke, bfill -= ke;
+	    if ((int) bfill < 0) bfill = 0;
+	} while (!Q_empty(&Q));
     }
     if (bfill > 0) *s++ = base64[(b>>0)&63], len--;
     if (bfill > 6) *s++ = base64[(b>>6)&63], len--;
@@ -262,5 +324,5 @@ size_t setstring_encode(const uint32_t v[], size_t n, int bpp, int m, char *s)
     assert(len2);
     if (len2 <= len1)
 	return len2;
-    return enctab[-m-1](v, n, bpp, s);
+    return enctab[-m-5-1](v, n, bpp, s);
 }

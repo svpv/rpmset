@@ -37,16 +37,19 @@ void conv(const char *s, size_t len, char nl)
     size_t n;
     int bpp, m;
     uint32_t *v = decode(s, len, &n, &bpp);
-    len = setstring_encinit(v, n, bpp, &m);
-    assert(len > 0);
-    char *ss = malloc(len + 4);
+    size_t len1 = setstring_encinit(v, n, bpp, &m);
+    assert(len1 > 0);
+    char *ss = malloc(len1 + 4);
     memcpy(ss, "set:", 4);
-    len = setstring_encode(v, n, bpp, m, ss + 4);
-    assert(len > 0);
-    recheck(ss + 4, len, v, n);
-    ss[4+len] = nl;
-#define print(s, len) fwrite_unlocked(s, 1, len, stdout)
-    print(ss, 4 + len + 1);
+    size_t len2 = setstring_encode(v, n, bpp, m, ss + 4);
+    assert(len2 > 0);
+    assert(len2 < len1); // len1 accounts for '\0', len2 does not
+    assert(len2 <= len);
+    assert(strlen(ss + 4) == len2);
+    recheck(ss + 4, len2, v, n);
+    ss[4+len2] = nl;
+#define print(s, size) fwrite_unlocked(s, 1, size, stdout)
+    print(ss, 4 + len2 + 1);
     free(v);
     free(ss);
 }
