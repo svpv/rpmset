@@ -118,9 +118,9 @@ void bench_LOOP(const char *name,
 	v[i] &= (1 << m) - 1;
     assert(memcmp(v, w, LOOP*n * 4) == 0);
     if (em) {
-	for (unsigned i = 0; i < 16; i++)
+	for (unsigned i = 0; i < LOOP; i++)
 	    ev[i] &= (1 << em) - 1;
-	assert(memcmp(ev, ew, 16 * 4) == 0);
+	assert(memcmp(ev, ew, LOOP * 4) == 0);
     }
     fprintf(stderr, "%s: %.2f cycles per integer\n",
 	    name, (double) t / (LOOP*n) / (1<<16));
