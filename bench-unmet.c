@@ -38,8 +38,58 @@ void getpairs(void)
     }
 }
 
+#if defined(__i386__) || defined(__x86_64__)
+#include <x86intrin.h>
+#define rdtsc() __rdtsc()
+#elif defined(__aarch64__)
+static inline uint64_t rdtsc(void)
+{
+    uint64_t t;
+    asm volatile("mrs %0, cntvct_el0" : "=r"(t));
+    return t;
+}
+#else
+#error "rdtsc not supported"
+#endif
+
+#include "setstring.h"
+
+double bench()
+{
+    uint64_t tsum = 0;
+    uint64_t nsum = 0;
+    for (size_t i = 0; i < npair; i++) {
+	struct pair *p = &pairs[i];
+	int bpp;
+	size_t n = setstring_decinit(p->s0, p->len0, &bpp);
+	assert(n > 0);
+	uint32_t *v = malloc(n * 4);
+	assert(v);
+	uint64_t t0 = rdtsc();
+	n = setstring_decode(p->s0, p->len0, bpp, v);
+	tsum += rdtsc() - t0;
+	assert(n > 0);
+	nsum += n;
+	free(v);
+
+	n = setstring_decinit(PAIR_S1(p), p->len1, &bpp);
+	assert(n > 0);
+	v = malloc(n * 4);
+	assert(v);
+	t0 = rdtsc();
+	n = setstring_decode(PAIR_S1(p), p->len1, bpp, v);
+	tsum += rdtsc() - t0;
+	assert(n > 0);
+	nsum += n;
+	free(v);
+    }
+    return tsum / (double) nsum;
+}
+
 int main()
 {
     getpairs();
+    double cpi = bench();
+    fprintf(stderr, "%.1f cycles per integer\n", cpi);
     return 0;
 }
