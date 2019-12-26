@@ -26,7 +26,8 @@ INC1 = base64unpack-simd.h
 %-scalar: INC1 = base64unpack-scalar.h
 WFLAGS = -Wextra
 DFLAGS =
-COMPILE = $(CC) $(RPM_OPT_FLAGS) $(WFLAGS) $(DFLAGS) $(MFLAGS1) $(MFLAGS2)
+STD = -std=gnu11 -D_GNU_SOURCE
+COMPILE = $(CC) $(STD) $(RPM_OPT_FLAGS) $(WFLAGS) $(DFLAGS) $(MFLAGS1) $(MFLAGS2)
 bench-base64unpack-% : bench-base64unpack.c base64.h base64.c \
 		base64pack.h base64unpack-scalar.h base64unpack-simd.h
 	$(COMPILE) -include $(INC1) base64.c bench-base64unpack.c -o $@
@@ -34,3 +35,11 @@ check-base64unpack-% : bench-base64unpack-%
 	./$<
 clean:
 	rm -f bench-base64unpack-*
+dump-rpmsetcmp.so: dump-rpmsetcmp.c
+	$(COMPILE) -fpic -shared $< -o $@
+orig.setcmp.zst: dump-rpmsetcmp.so
+	apt-cache unmet &>/dev/null
+	LD_PRELOAD=$$PWD/dump-rpmsetcmp.so \
+	apt-cache unmet |awk '/^set:/&&NF==2' |zstd -11 >$@
+conv.setcmp.zst: orig.setcmp.zst conv
+	zstd -d <$< |./conv |zstd -11 >$@
