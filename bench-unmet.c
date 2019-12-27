@@ -100,13 +100,15 @@ bool cached(const char *s, size_t len)
     return false;
 }
 
+bool opt_R;
+
 double bench()
 {
     uint64_t tsum = 0;
     uint64_t nsum = 0;
     for (size_t i = 0; i < npair; i++) {
 	struct pair *p = &pairs[i];
-	if (p->len0 >= 128 && cached(p->s0, p->len0))
+	if (opt_R || (p->len0 >= 128 && cached(p->s0, p->len0)))
 	    goto R;
 	int bpp;
 #ifdef OLD
@@ -164,8 +166,19 @@ double bench()
     return tsum / (double) nsum;
 }
 
-int main()
+#include <unistd.h>
+
+int main(int argc, char **argv)
 {
+    int opt;
+    while ((opt = getopt(argc, argv, "R")) != -1)
+	switch (opt) {
+	case 'R':
+	    opt_R = 1;
+	    break;
+	default:
+	    assert(!"getopt");
+	}
     getpairs();
     double cpi = bench();
     fprintf(stderr, "%.1f cycles per integer\n", cpi);
