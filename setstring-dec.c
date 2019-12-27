@@ -90,10 +90,9 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
 	    uint32_t z = __builtin_ctz(b);
 	    q += z++;
 	    b >>= z, bfill -= z;
-	    v0 += v[i] + (q << m) + 1;
-	    v[i] = v0;
+	    v0 += *v + (q << m) + 1;
+	    *v++ = v0;
 	}
-	v += kn;
     }
     // Read the rest from the bitstream.
     uint32_t rmask = (1U << m) - 1;
