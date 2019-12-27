@@ -33,3 +33,7 @@ const int16_t base64d1[256] = { D };
 #undef _
 #define _ << 12,
 const int32_t base64d2[256] = { D };
+
+#undef _
+#define _ << 18,
+const int32_t base64d3[256] = { D };

@@ -63,7 +63,7 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
 	    uint32_t q = 0;
 	    while (unlikely(b == 0)) {
 		q += bfill;
-		if (unlikely(len < 3)) {
+		if (unlikely(len < 4)) {
 		    switch (len) {
 		    case 0:
 			return 0;
@@ -78,13 +78,19 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
 			if (unlikely((int32_t) b < 0))
 			    return 0;
 			bfill = 12, s += 2, len -= 2;
+			break;
+		    case 3:
+			b = base64dec3(s);
+			if (unlikely((int32_t) b < 0))
+			    return 0;
+			bfill = 18, s += 3, len -= 3;
 		    }
 		}
 		else {
-		    b = base64dec3(s);
+		    b = base64dec4(s);
 		    if (unlikely((int32_t) b < 0))
 			return 0;
-		    bfill = 18, s += 3, len -= 3;
+		    bfill = 24, s += 4, len -= 4;
 		}
 	    }
 	    uint32_t z = __builtin_ctz(b);
