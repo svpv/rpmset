@@ -102,66 +102,48 @@ bool cached(const char *s, size_t len)
 
 bool opt_R;
 
-double bench()
+void dec1(const char *s, size_t len, uint64_t *nsum, uint64_t *tsum)
+{
+    int bpp;
+#ifdef OLD
+    int m;
+    int rc = decode_set_init(s, &bpp, &m);
+    assert(rc == 0);
+    rc = decode_set_size(len, m);
+    assert(rc > 0);
+    size_t n = rc;
+#else
+    size_t n = setstring_decinit(s, len, &bpp);
+    assert(n > 0);
+#endif
+    uint32_t *v = malloc(n * 4);
+    assert(v);
+    uint64_t t0 = rdtsc();
+#ifdef OLD
+    rc = decode_set(s, m, v);
+    assert(rc > 0);
+    n = rc;
+#else
+    n = setstring_decode(s, len, bpp, v);
+    assert(n > 0);
+#endif
+    *tsum += rdtsc() - t0;
+    *nsum += n;
+    free(v);
+}
+
+double bench(void)
 {
     uint64_t tsum = 0;
     uint64_t nsum = 0;
     for (size_t i = 0; i < npair; i++) {
 	struct pair *p = &pairs[i];
 	if (opt_R || (p->len0 >= 128 && cached(p->s0, p->len0)))
-	    goto R;
-	int bpp;
-#ifdef OLD
-	int m;
-	int rc = decode_set_init(p->s0, &bpp, &m);
-	assert(rc == 0);
-	rc = decode_set_size(p->len0, m);
-	assert(rc > 0);
-	size_t n = rc;
-#else
-	size_t n = setstring_decinit(p->s0, p->len0, &bpp);
-	assert(n > 0);
-#endif
-	uint32_t *v = malloc(n * 4);
-	assert(v);
-	uint64_t t0 = rdtsc();
-#ifdef OLD
-	rc = decode_set(p->s0, m, v);
-	assert(rc > 0);
-	n = rc;
-#else
-	n = setstring_decode(p->s0, p->len0, bpp, v);
-	assert(n > 0);
-#endif
-	tsum += rdtsc() - t0;
-	nsum += n;
-	free(v);
-
-    R:
-#ifdef OLD
-	rc = decode_set_init(p->s0, &bpp, &m);
-	assert(rc == 0);
-	rc = decode_set_size(p->len0, m);
-	assert(rc > 0);
-	n = rc;
-#else
-	n = setstring_decinit(PAIR_S1(p), p->len1, &bpp);
-	assert(n > 0);
-#endif
-	v = malloc(n * 4);
-	assert(v);
-	t0 = rdtsc();
-#ifdef OLD
-	rc = decode_set(p->s0, m, v);
-	assert(rc > 0);
-	n = rc;
-#else
-	n = setstring_decode(PAIR_S1(p), p->len1, bpp, v);
-	assert(n > 0);
-#endif
-	tsum += rdtsc() - t0;
-	nsum += n;
-	free(v);
+	    dec1(PAIR_S1(p), p->len1, &nsum, &tsum);
+	else {
+	    dec1(p->s0, p->len0, &nsum, &tsum);
+	    dec1(PAIR_S1(p), p->len1, &nsum, &tsum);
+	}
     }
     return tsum / (double) nsum;
 }
