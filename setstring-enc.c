@@ -164,11 +164,12 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 	    }							\
 	    bal -= kn;						\
 	}							\
-	if (len >= 2 && bfill >= 12) {				\
-	    s[0] = base64[(b>>0)&63];				\
-	    s[1] = base64[(b>>6)&63];				\
-	    b >>= 12, bfill -= 12;				\
-	    s += 2, len -= 2;					\
+	if (len >= 3 && bfill >= 18) {				\
+	    s[0] = base64[(b>>00)&63];				\
+	    s[1] = base64[(b>>06)&63];				\
+	    s[2] = base64[(b>>12)&63];				\
+	    b >>= 18, bfill -= 18;				\
+	    s += 3, len -= 3;					\
 	    bal += bcnt, bcnt = 0;				\
 	    continue;						\
 	}							\
@@ -197,7 +198,7 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 	// decoder.  In the decoder, the condition is checked after all
 	// the necessary q-bits from the previous iteration have been read.
 	// Therefore, we must account for the pending q-bits.
-	ctl = (bfill > ke * Q_nblock(&Q, kn)) ? (len > 1 ? 2 : 1) : 0;
+	ctl = (bfill > ke * Q_nblock(&Q, kn)) ? (len < 3 ? len : 3) : 0;
     }
 
     assert(bal + bcnt - Q_nblock(&Q, kn) * kn == 0);
@@ -207,12 +208,13 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 #define FLUSH2 \
     do {							\
 	if (bal < 0) {						\
-	    if (bfill < 12)					\
+	    if (bfill < 18)					\
 		break;						\
-	    s[0] = base64[(b>>0)&63];				\
-	    s[1] = base64[(b>>6)&63];				\
-	    b >>= 12, bfill -= 12;				\
-	    s += 2, len -= 2;					\
+	    s[0] = base64[(b>>00)&63];				\
+	    s[1] = base64[(b>>06)&63];				\
+	    s[2] = base64[(b>>12)&63];				\
+	    b >>= 18, bfill -= 18;				\
+	    s += 3, len -= 3;					\
 	    bal = 0;						\
 	}							\
 	while (bfill >= ke && !Q_empty(&Q)) {			\
@@ -221,11 +223,12 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 	    s += ks;						\
 	    b >>= ke, bfill -= ke;				\
 	}							\
-	while (bfill >= 12 && Q_empty(&Q)) {			\
-	    s[0] = base64[(b>>0)&63];				\
-	    s[1] = base64[(b>>6)&63];				\
-	    b >>= 12, bfill -= 12;				\
-	    s += 2, len -= 2;					\
+	while (bfill >= 18 && Q_empty(&Q)) {			\
+	    s[0] = base64[(b>>00)&63];				\
+	    s[1] = base64[(b>>06)&63];				\
+	    s[2] = base64[(b>>12)&63];				\
+	    b >>= 18, bfill -= 18;				\
+	    s += 3, len -= 3;					\
 	}							\
     } while (0)
 
@@ -246,10 +249,11 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 
     if (!Q_empty(&Q)) {
 	if (bal < 0) {
-	    assert(bfill > 6);
-	    s[0] = base64[(b>>0)&63];
-	    s[1] = base64[(b>>6)&63];
-	    s += 2, len -= 2;
+	    assert(bfill > 12);
+	    s[0] = base64[(b>>00)&63];
+	    s[1] = base64[(b>>06)&63];
+	    s[2] = base64[(b>>12)&63];
+	    s += 3, len -= 3;
 	    b = 0, bfill = 0;
 	    bal = 0;
 	}
@@ -261,8 +265,9 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 	    if ((int) bfill < 0) bfill = 0;
 	} while (!Q_empty(&Q));
     }
-    if (bfill > 0) *s++ = base64[(b>>0)&63], len--;
-    if (bfill > 6) *s++ = base64[(b>>6)&63], len--;
+    if (bfill > 00) *s++ = base64[(b>>00)&63], len--;
+    if (bfill > 06) *s++ = base64[(b>>06)&63], len--;
+    if (bfill > 12) *s++ = base64[(b>>12)&63], len--;
     assert(len == 0);
     *s = '\0';
     return s - s_start;
