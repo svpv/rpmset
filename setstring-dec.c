@@ -61,7 +61,7 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
 	// Read the q-bits from the bitstream.
 	for (unsigned i = 0; i < kn; i++) {
 	    uint32_t q = 0;
-	    while (b == 0) {
+	    while (unlikely(b == 0)) {
 		q += bfill;
 		if (unlikely(len < 3)) {
 		    switch (len) {
