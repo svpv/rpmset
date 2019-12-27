@@ -59,12 +59,55 @@ static inline uint64_t rdtsc(void)
 #include "setstring.h"
 #endif
 
+#include <stdbool.h>
+#include <t1ha.h>
+
+bool cached(const char *s, size_t len)
+{
+    uint64_t h = t1ha2_atonce(s, len, 0);
+#undef CACHE_SIZE
+#define CACHE_SIZE 255
+#define MIDPOINT 224
+#define MOVSTEP 32
+    static struct {
+	uint64_t hv[CACHE_SIZE+1];
+	unsigned n;
+    } C;
+    uint64_t *hv = C.hv;
+    uint64_t *hp = C.hv;
+    hv[C.n] = h;
+    while (*hp != h)
+	hp++;
+    size_t i = hp - hv;
+    if (i < C.n) { // found
+	if (i > MOVSTEP) { // move to front
+	    hv += i - MOVSTEP;
+	    memmove(hv + 1, hv, MOVSTEP * 8);
+	    hv[0] = h;
+	}
+	return true;
+    }
+    // not found
+    if (C.n < MIDPOINT)
+	i = C.n++;
+    else {
+	if (C.n < CACHE_SIZE)
+	    C.n++;
+	i = MIDPOINT;
+	memmove(hv + i + 1, hv + i, (CACHE_SIZE - i - 1) * 8);
+    }
+    hv[i] = h;
+    return false;
+}
+
 double bench()
 {
     uint64_t tsum = 0;
     uint64_t nsum = 0;
     for (size_t i = 0; i < npair; i++) {
 	struct pair *p = &pairs[i];
+	if (p->len0 >= 128 && cached(p->s0, p->len0))
+	    goto R;
 	int bpp;
 #ifdef OLD
 	int m;
@@ -92,6 +135,7 @@ double bench()
 	nsum += n;
 	free(v);
 
+    R:
 #ifdef OLD
 	rc = decode_set_init(p->s0, &bpp, &m);
 	assert(rc == 0);
