@@ -47,7 +47,7 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
     unsigned bfill = 0;
     s += 2, len -= 2;
     // Bulk decoding.
-    while (len > dec_xlen(m, kn, v0, vmax) && len >= ks + ko) {
+    while (len >= ks + ko && len > dec_xlen(m, kn, v0, vmax)) {
 	// Decode a block of m-bit integers.
 	unsigned e;
 	bool ok = unpack(s, v, &e);

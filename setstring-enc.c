@@ -176,7 +176,7 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 	break;							\
     } while (1)
 
-    while (len - ctl > enc_xlen(m, kn, v0, vmax) && len - ctl >= ks + ko) {
+    while (len - ctl >= ks + ko && len - ctl > enc_xlen(m, kn, v0, vmax)) {
 	// Make a block of deltas.
 	uint32_t *dv = Q_push(&Q, kn);
 	for (unsigned i = 0; i < kn; i++) {
