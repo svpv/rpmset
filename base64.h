@@ -4,10 +4,19 @@
 #pragma GCC visibility push(hidden)
 
 extern const char base64[64];
-extern const int8_t base64d0[256];
-extern const int16_t base64d1[256];
-extern const int32_t base64d2[256];
-extern const int32_t base64d3[256];
+
+struct base64dtab {
+    const int8_t d0[256];
+    const int16_t d1[256];
+    const int32_t d2[256];
+    const int32_t d3[256];
+};
+
+extern const struct base64dtab base64dtab;
+#define base64d0 base64dtab.d0
+#define base64d1 base64dtab.d1
+#define base64d2 base64dtab.d2
+#define base64d3 base64dtab.d3
 
 // These routines deliberately return uint32_t, so that left shifts do not
 // trigger undefined behavior.  To check the result, assign to int32_t:

@@ -23,17 +23,16 @@ const char base64[64] =
     -1 , -1 , -1 , -1 , -1 , -1 , -1 , -1 , -1 , -1 , -1 , -1 , -1 , -1 , -1 , -1 , \
     -1 , -1 , -1 , -1 , -1 , -1 , -1 , -1 , -1 , -1 , -1 , -1 , -1 , -1 , -1 , -1 , \
 
+const struct base64dtab base64dtab = {
 #define _ ,
-const int8_t base64d0[256] = { D };
-
+    { D },
 #undef _
 #define _ << 6,
-const int16_t base64d1[256] = { D };
-
+    { D },
 #undef _
 #define _ << 12,
-const int32_t base64d2[256] = { D };
-
+    { D },
 #undef _
 #define _ << 18,
-const int32_t base64d3[256] = { D };
+    { D },
+};
