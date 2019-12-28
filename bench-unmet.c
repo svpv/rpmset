@@ -138,12 +138,16 @@ double bench(void)
     uint64_t nsum = 0;
     for (size_t i = 0; i < npair; i++) {
 	struct pair *p = &pairs[i];
-	if (opt_R || (p->len0 >= 128 && cached(p->s0, p->len0)))
-	    dec1(PAIR_S1(p), p->len1, &nsum, &tsum);
-	else {
-	    dec1(p->s0, p->len0, &nsum, &tsum);
-	    dec1(PAIR_S1(p), p->len1, &nsum, &tsum);
+	if (!opt_R) {
+	    if (p->len0 < 128) {
+		assert(strlen(p->s0) == p->len0); // prefetch
+		dec1(p->s0, p->len0, &nsum, &tsum);
+	    }
+	    else if (!cached(p->s0, p->len0))
+		dec1(p->s0, p->len0, &nsum, &tsum);
 	}
+	assert(strlen(PAIR_S1(p)) == p->len1);
+	dec1(PAIR_S1(p), p->len1, &nsum, &tsum);
     }
     return tsum / (double) nsum;
 }
