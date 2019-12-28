@@ -3,6 +3,7 @@
 #include "base64.h"
 
 #define unlikely(x) __builtin_expect(x, 0)
+#define likely(x) __builtin_expect(!!(x), 1)
 
 size_t setstring_decinit(const char *s, size_t len, int *bpp)
 {
@@ -60,8 +61,16 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
 	s += ks, len -= ks;
 	// Read the q-bits from the bitstream.
 	for (unsigned i = 0; i < kn; i++) {
+	    if (likely(b != 0)) {
+		uint32_t z = __builtin_ctz(b);
+		uint32_t q = z++;
+		b >>= z, bfill -= z;
+		v0 += *v + (q << m) + 1;
+		*v++ = v0;
+		continue;
+	    }
 	    uint32_t q = 0;
-	    while (unlikely(b == 0)) {
+	    do {
 		q += bfill;
 		if (unlikely(len < 4)) {
 		    switch (len) {
@@ -92,7 +101,7 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
 			return 0;
 		    bfill = 24, s += 4, len -= 4;
 		}
-	    }
+	    } while (unlikely(b == 0));
 	    uint32_t z = __builtin_ctz(b);
 	    q += z++;
 	    b >>= z, bfill -= z;
