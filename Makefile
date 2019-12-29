@@ -34,12 +34,22 @@ bench-base64unpack-% : bench-base64unpack.c base64.h base64.c \
 check-base64unpack-% : bench-base64unpack-%
 	./$<
 clean:
-	rm -f bench-base64unpack-*
+	rm -f bench-base64unpack-* bench-unmet-*
 dump-rpmsetcmp.so: dump-rpmsetcmp.c
 	$(COMPILE) -fpic -shared $< -o $@
+conv: base64unpack-scalar.h conv.c base64.c setstring-enc.c setstring-dec.c
+	$(COMPILE) -Wno-override-init -include $^ -o $@
 orig.setcmp.zst: dump-rpmsetcmp.so
 	apt-cache unmet &>/dev/null
 	LD_PRELOAD=$$PWD/dump-rpmsetcmp.so \
 	apt-cache unmet |awk '/^set:/&&NF==2' |zstd -11 >$@
 conv.setcmp.zst: orig.setcmp.zst conv
 	zstd -d <$< |./conv |zstd -11 >$@
+bench: $(TARGETS:%=bench-unmet-%) $(TARGETS:%=runbench-unmet-%)
+runbench-% : bench-% conv.setcmp.zst
+	zstd -d <conv.setcmp.zst |./$<
+bench-unmet-% : bench-unmet.c base64.h base64.c \
+		base64unpack-scalar.h base64unpack-simd.h \
+		setstring.h setstring-dec.c \
+		conv.setcmp.zst
+	$(COMPILE) -include $(INC1) $< setstring-dec.c base64.c -o $@ -lt1ha

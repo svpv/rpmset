@@ -19,7 +19,7 @@ void getpairs(void)
     size_t len;
     char *line = NULL;
     size_t alloc = 0;
-    while ((len = getline(&line, &alloc, stdin)) != -1) {
+    while ((len = getline(&line, &alloc, stdin)) != (size_t) -1) {
 	assert(len > 0);
 	len--;
 	assert(line[len] == '\n');

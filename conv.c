@@ -63,7 +63,7 @@ int main(int argc, const char **argv)
     assert(argc == 1);
     char *line = NULL;
     size_t alloc = 0, len;
-    while ((len = getline(&line, &alloc, stdin)) != -1) {
+    while ((len = getline(&line, &alloc, stdin)) != (size_t) -1) {
 	assert(len > 1);
 	len--;
 	assert(line[len] == '\n');
