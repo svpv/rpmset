@@ -82,13 +82,13 @@ static size_t enc_dryrun(const uint32_t v[], size_t n, int m)
     return (bits + 5) / 6;
 }
 
-// The same as dec_xlen.
-static inline size_t enc_xlen(int m, unsigned kn, uint32_t v0, uint32_t vmax)
+// The same as dec_xblen.
+static inline size_t enc_xblen(int m, unsigned kn, uint32_t v0, uint32_t vmax)
 {
     unsigned n = kn - 1;
     size_t bits1 = n * (m + 1);
     size_t bits2 = (vmax - v0 - n) >> m;
-    return (bits1 + bits2 + 5) / 6;
+    return bits1 + bits2;
 }
 
 // To interleave SIMD blocks and the q-bitstream properly, we maintain
@@ -177,7 +177,7 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 	break;							\
     } while (1)
 
-    while (len - ctl >= ks + ko && len - ctl > enc_xlen(m, kn, v0, vmax)) {
+    while (len - ctl >= ks + ko && 6 * (len - ctl) > 5 + enc_xblen(m, kn, v0, vmax)) {
 	// Make a block of deltas.
 	uint32_t *dv = Q_push(&Q, kn);
 	for (unsigned i = 0; i < kn; i++) {

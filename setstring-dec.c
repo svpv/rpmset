@@ -25,16 +25,16 @@ size_t setstring_decinit(const char *s, size_t len, int *bpp)
 
 // Decide whether to process a SIMD block (kn elements) or to fall
 // back to a slower code path near the end of the string.
-static inline size_t dec_xlen(int m, unsigned kn, uint32_t v0, uint32_t vmax)
+static inline size_t dec_xblen(int m, unsigned kn, uint32_t v0, uint32_t vmax)
 {
     // We must not process a SIMD block if there is a possibility that
     // only (kn - 1) elements are left.  Therefore we estimate that the
-    // remaining (kn - 1) elements take at most dec_xlen characters.
+    // remaining (kn - 1) elements take at most dec_xblen bits.
     unsigned n = kn - 1;
     size_t bits1 = n * (m + 1);
     // Ensure the remaining range can be covered by q-bits, cf. enc_maxbits.
     size_t bits2 = (vmax - v0 - n) >> m;
-    return (bits1 + bits2 + 5) / 6;
+    return bits1 + bits2;
 }
 
 static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[],
@@ -48,7 +48,7 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
     unsigned bfill = 0;
     s += 2, len -= 2;
     // Bulk decoding.
-    while (len >= ks + ko && len > dec_xlen(m, kn, v0, vmax)) {
+    while (len >= ks + ko && 6 * len > 5 + dec_xblen(m, kn, v0, vmax)) {
 	// Decode a block of m-bit integers.
 	unsigned e;
 	bool ok = unpack(s, v, &e);
