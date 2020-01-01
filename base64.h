@@ -10,6 +10,7 @@ struct base64dtab {
     const int16_t d1[256];
     const int32_t d2[256];
     const int32_t d3[256];
+    const int32_t d4[256];
 };
 
 extern const struct base64dtab base64dtab;
@@ -17,6 +18,7 @@ extern const struct base64dtab base64dtab;
 #define base64d1 base64dtab.d1
 #define base64d2 base64dtab.d2
 #define base64d3 base64dtab.d3
+#define base64d4 base64dtab.d4
 
 // These routines deliberately return uint32_t, so that left shifts do not
 // trigger undefined behavior.  To check the result, assign to int32_t:
@@ -57,6 +59,11 @@ static inline uint32_t base64dec4c(unsigned char c0, unsigned char c1, unsigned 
     return base64d0[c0] | base64d1[c1] | base64d2[c2] | base64d3[c3];
 }
 
+static inline uint32_t base64dec5c(unsigned char c0, unsigned char c1, unsigned char c2, unsigned char c3, unsigned char c4)
+{
+    return base64d0[c0] | base64d1[c1] | base64d2[c2] | base64d3[c3] | base64d4[c4];
+}
+
 static inline uint32_t base64dec2(const char *s)
 {
     return base64dec2c(s[0], s[1]);
@@ -70,6 +77,11 @@ static inline uint32_t base64dec3(const char *s)
 static inline uint32_t base64dec4(const char *s)
 {
     return base64dec4c(s[0], s[1], s[2], s[3]);
+}
+
+static inline uint32_t base64dec5(const char *s)
+{
+    return base64dec5c(s[0], s[1], s[2], s[3], s[4]);
 }
 
 static inline uint64_t base64wdec2(const char *s)

@@ -35,4 +35,7 @@ const struct base64dtab base64dtab = {
 #undef _
 #define _ << 18,
     { D },
+#undef _
+#define _ << 24,
+    { D },
 };

@@ -39,7 +39,7 @@ static inline size_t dec_xblen(int m, unsigned kn, uint32_t v0, uint32_t vmax)
 
 static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[],
 	bool (*unpack)(const char *s, uint32_t *v, unsigned *e),
-	unsigned kn, unsigned ks, unsigned ke, unsigned ko)
+	unsigned kn, unsigned ks, unsigned ke, unsigned ko, unsigned kq)
 {
     uint32_t v0 = (uint32_t) -1;
     uint32_t vmax = (bpp == 32) ? UINT32_MAX : (1U << bpp) - 1;
@@ -47,6 +47,14 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
     uint32_t b = 0; // variable-length bitstream
     unsigned bfill = 0;
     s += 2, len -= 2;
+#define FILL(k)					\
+    do {					\
+	b = base64dec##k(s);			\
+	if (unlikely((int32_t) b < 0))		\
+	    return 0;				\
+	bfill = 6 * k;				\
+	s += k, len -= k;			\
+    } while (0)
     // Bulk decoding.
     while (len >= ks + ko && 6 * len > 5 + dec_xblen(m, kn, v0, vmax)) {
 	// Decode a block of m-bit integers.
@@ -61,49 +69,32 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
 	s += ks, len -= ks;
 	// Read the q-bits from the bitstream.
 	for (unsigned i = 0; i < kn; i++) {
-	    if (likely(b != 0)) {
-		uint32_t z = __builtin_ctz(b);
-		uint32_t q = z++;
-		b >>= z, bfill -= z;
-		v0 += *v + (q << m) + 1;
-		*v++ = v0;
-		continue;
+	    uint32_t z, q;
+	    if (likely(b != 0))
+		z = __builtin_ctz(b), q = z;
+	    else {
+		q = 0;
+		do {
+		    q += bfill;
+		    if (unlikely(len < kq))
+			switch (len) {
+			case 0: return 0;
+			case 1: FILL(1); break;
+			case 2: FILL(2); break;
+			case 3: FILL(3); break;
+			case 4: FILL(4); break;
+			}
+		    else
+			switch (kq) {
+			case 2: FILL(2); break;
+			case 3: FILL(3); break;
+			case 4: FILL(4); break;
+			case 5: FILL(5); break;
+			}
+		} while (unlikely(b == 0));
+		z = __builtin_ctz(b), q += z;
 	    }
-	    uint32_t q = 0;
-	    do {
-		q += bfill;
-		if (unlikely(len < 4)) {
-		    switch (len) {
-		    case 0:
-			return 0;
-		    case 1:
-			b = base64dec1(s);
-			if (unlikely((int32_t) b < 0))
-			    return 0;
-			bfill = 6, s++, len--;
-			break;
-		    case 2:
-			b = base64dec2(s);
-			if (unlikely((int32_t) b < 0))
-			    return 0;
-			bfill = 12, s += 2, len -= 2;
-			break;
-		    case 3:
-			b = base64dec3(s);
-			if (unlikely((int32_t) b < 0))
-			    return 0;
-			bfill = 18, s += 3, len -= 3;
-		    }
-		}
-		else {
-		    b = base64dec4(s);
-		    if (unlikely((int32_t) b < 0))
-			return 0;
-		    bfill = 24, s += 4, len -= 4;
-		}
-	    } while (unlikely(b == 0));
-	    uint32_t z = __builtin_ctz(b);
-	    q += z++;
+	    z++;
 	    b >>= z, bfill -= z;
 	    v0 += *v + (q << m) + 1;
 	    *v++ = v0;
@@ -117,10 +108,7 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
 	    q += bfill;
 	    if (unlikely(len == 0))
 		return 0;
-	    b = base64dec1(s);
-	    if ((int32_t) b < 0)
-		return 0;
-	    bfill = 6, s++, len--;
+	    FILL(1);
 	}
 	uint32_t z = __builtin_ctz(b);
 	q += z++;
@@ -130,10 +118,7 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
 	while ((left = rfill - m) < 0) {
 	    if (unlikely(len == 0))
 		return 0;
-	    b = base64dec1(s);
-	    if ((int32_t) b < 0)
-		return 0;
-	    bfill = 6, s++, len--;
+	    FILL(1);
 	    r |= b << rfill;
 	    rfill += bfill;
 	}
@@ -147,40 +132,40 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
     return v - v_start;
 }
 
-#define Routine(unpack, m, kn, ks, ke, ko) \
+#define Routine(unpack, m, kn, ks, ke, ko, kq) \
 static size_t decode##m(const char *s, size_t len, int bpp, uint32_t v[]) \
-{ return dec1(s, len, bpp, m, v, unpack, kn, ks, ke, ko); }
+{ return dec1(s, len, bpp, m, v, unpack, kn, ks, ke, ko, kq); }
 
 #define Routines \
-    Routine(unpack5x19c16e1,    5, 19, 16, 1, 0) \
-    Routine(unpack6x16c16,      6, 16, 16, 0, 0) \
-    Routine(unpack7x12c14,      7, 12, 14, 0, 0) \
-    Routine(unpack8x12c16,      8, 12, 16, 0, 0) \
-    Routine(unpack9x10c15,      9, 10, 15, 0, 0) \
-    Routine(unpack10x9c15,     10,  9, 15, 0, 0) \
-    Routine(unpack11x8c15e2,   11,  8, 15, 2, 0) \
-    Routine(unpack12x8c16,     12,  8, 16, 0, 0) \
-    Routine(unpack13x6c13o1,   13,  6, 13, 0, 1) \
-    Routine(unpack14x6c14,     14,  6, 14, 0, 0) \
-    Routine(unpack15x6c15,     15,  6, 15, 0, 0) \
-    Routine(unpack16x6c16,     16,  6, 16, 0, 0) \
-    Routine(unpack17x6c17,     17,  6, 17, 0, 0) \
-    Routine(unpack18x5c15,     18,  5, 15, 0, 0) \
-    Routine(unpack19x5c16e1,   19,  5, 16, 1, 0) \
-    Routine(unpack20x4c14e4,   20,  4, 14, 4, 0) \
-    Routine(unpack21x4c14,     21,  4, 14, 0, 0) \
-    Routine(unpack22x4c15e2,   22,  4, 15, 2, 0) \
-    Routine(unpack23x4c16e4,   23,  4, 16, 4, 0) \
-    Routine(unpack24x4c16,     24,  4, 16, 0, 0) \
-    Routine(unpack25x4c17e2,   25,  4, 17, 2, 0) \
-    Routine(unpack26x3c13o1,   26,  3, 13, 0, 1) \
-    Routine(unpack27x3c14e3,   27,  3, 14, 3, 0) \
-    Routine(unpack28x3c14,     28,  3, 14, 0, 0) \
-    Routine(unpack29x3c15e3o1, 29,  3, 15, 3, 1) \
-    Routine(unpack30x3c15o1,   30,  3, 15, 0, 1) \
+    Routine(unpack5x19c16e1,    5, 19, 16, 1, 0, 5) \
+    Routine(unpack6x16c16,      6, 16, 16, 0, 0, 5) \
+    Routine(unpack7x12c14,      7, 12, 14, 0, 0, 5) \
+    Routine(unpack8x12c16,      8, 12, 16, 0, 0, 5) \
+    Routine(unpack9x10c15,      9, 10, 15, 0, 0, 5) \
+    Routine(unpack10x9c15,     10,  9, 15, 0, 0, 5) \
+    Routine(unpack11x8c15e2,   11,  8, 15, 2, 0, 5) \
+    Routine(unpack12x8c16,     12,  8, 16, 0, 0, 5) \
+    Routine(unpack13x6c13o1,   13,  6, 13, 0, 1, 5) \
+    Routine(unpack14x6c14,     14,  6, 14, 0, 0, 5) \
+    Routine(unpack15x6c15,     15,  6, 15, 0, 0, 5) \
+    Routine(unpack16x6c16,     16,  6, 16, 0, 0, 5) \
+    Routine(unpack17x6c17,     17,  6, 17, 0, 0, 5) \
+    Routine(unpack18x5c15,     18,  5, 15, 0, 0, 5) \
+    Routine(unpack19x5c16e1,   19,  5, 16, 1, 0, 5) \
+    Routine(unpack20x4c14e4,   20,  4, 14, 4, 0, 4) \
+    Routine(unpack21x4c14,     21,  4, 14, 0, 0, 5) \
+    Routine(unpack22x4c15e2,   22,  4, 15, 2, 0, 5) \
+    Routine(unpack23x4c16e4,   23,  4, 16, 4, 0, 4) \
+    Routine(unpack24x4c16,     24,  4, 16, 0, 0, 5) \
+    Routine(unpack25x4c17e2,   25,  4, 17, 2, 0, 5) \
+    Routine(unpack26x3c13o1,   26,  3, 13, 0, 1, 5) \
+    Routine(unpack27x3c14e3,   27,  3, 14, 3, 0, 5) \
+    Routine(unpack28x3c14,     28,  3, 14, 0, 0, 5) \
+    Routine(unpack29x3c15e3o1, 29,  3, 15, 3, 1, 5) \
+    Routine(unpack30x3c15o1,   30,  3, 15, 0, 1, 5) \
 
 Routines
 
 #undef Routine
-#define Routine(unpack, m, kn, ks, ke, ko) decode##m,
+#define Routine(unpack, m, kn, ks, ke, ko, kq) decode##m,
 const setstring_decfunc_t setstring_dectab[26] = { Routines };
