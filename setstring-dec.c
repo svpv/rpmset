@@ -106,9 +106,12 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
 	uint32_t q = 0;
 	while (b == 0) {
 	    q += bfill;
-	    if (unlikely(len == 0))
+	    if (likely(len > 1))
+		FILL(2);
+	    else if (likely(len == 1))
+		FILL(1);
+	    else
 		return 0;
-	    FILL(1);
 	}
 	uint32_t z = __builtin_ctz(b);
 	q += z++;
@@ -116,9 +119,12 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
 	uint32_t r = b;
 	int rfill = bfill, left;
 	while ((left = rfill - m) < 0) {
-	    if (unlikely(len == 0))
+	    if (likely(len > 1))
+		FILL(2);
+	    else if (likely(len == 1))
+		FILL(1);
+	    else
 		return 0;
-	    FILL(1);
 	    r |= b << rfill;
 	    rfill += bfill;
 	}
