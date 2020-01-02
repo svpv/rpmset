@@ -68,7 +68,8 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
 	}
 	s += ks, len -= ks;
 	// Read the q-bits from the bitstream.
-	for (unsigned i = 0; i < kn; i++) {
+	uint32_t *vend = v + kn;
+	do {
 	    uint32_t z, q;
 	    if (likely(b != 0))
 		z = __builtin_ctz(b), q = z;
@@ -98,7 +99,7 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
 	    b >>= z, bfill -= z;
 	    v0 += *v + (q << m) + 1;
 	    *v++ = v0;
-	}
+	} while (v < vend);
     }
     // Read the rest from the bitstream.
     uint32_t rmask = (1U << m) - 1;
