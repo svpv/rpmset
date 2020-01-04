@@ -207,43 +207,6 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
     }
 
     assert(bal + popcnt32(b) - Q_nblock(&Q, kn) * kn == 0);
-    if (Q_empty(&Q))
-	bal = 0;
-
-#define FLUSH2 \
-    do {							\
-	if (bal < 0) {						\
-	    if (bfill < 6 * kq)					\
-		break;						\
-	    switch (kq) {					\
-	    case 5: s[4] = base64[(b>>24)&63]; /* FALLTHRU */	\
-	    case 4: s[3] = base64[(b>>18)&63]; /* FALLTHRU */	\
-	    case 3: s[2] = base64[(b>>12)&63]; /* FALLTHRU */	\
-	    default:s[1] = base64[(b>>06)&63];			\
-		    s[0] = base64[(b>>00)&63];			\
-	    }							\
-	    b >>= 6 * kq, bfill -= 6 * kq;			\
-	    s += kq, len -= kq;					\
-	    bal = 0;						\
-	}							\
-	while (bfill >= ke && !Q_empty(&Q)) {			\
-	    uint32_t *odv = Q_pop(&Q, kn);			\
-	    pack(odv, s, b);					\
-	    s += ks;						\
-	    b >>= ke, bfill -= ke;				\
-	}							\
-	while (bfill >= 6 * kq && Q_empty(&Q)) {		\
-	    switch (kq) {					\
-	    case 5: s[4] = base64[(b>>24)&63]; /* FALLTHRU */	\
-	    case 4: s[3] = base64[(b>>18)&63]; /* FALLTHRU */	\
-	    case 3: s[2] = base64[(b>>12)&63]; /* FALLTHRU */	\
-	    default:s[1] = base64[(b>>06)&63];			\
-		    s[0] = base64[(b>>00)&63];			\
-	    }							\
-	    b >>= 6 * kq, bfill -= 6 * kq;			\
-	    s += kq, len -= kq;					\
-	}							\
-    } while (0)
 
     uint32_t rmask = (1U << m) - 1;
     while (v < v_end) {
@@ -251,13 +214,13 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 	uint32_t dv = v1 - v0 - 1;
 	v0 = v1;
 	bfill += dv >> m;
-	FLUSH2;
+	FLUSH1;
 	b |= (1U << bfill);
 	bfill++;
 	dv &= rmask;
 	b |= (uint64_t) dv << bfill;
 	bfill += m;
-	FLUSH2;
+	FLUSH1;
     }
 
     if (!Q_empty(&Q)) {
