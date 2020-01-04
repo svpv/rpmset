@@ -132,6 +132,8 @@ static inline uint32_t *Q_pop(struct Q *Q, unsigned n)
     return v;
 }
 
+#define popcnt32 __builtin_popcount
+
 static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 	void (*pack)(const uint32_t *v, char *s, unsigned e),
 	unsigned kn, unsigned ks, unsigned ke, unsigned ko, unsigned kq)
@@ -147,7 +149,6 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
     uint32_t vmax = (bpp == 32) ? UINT32_MAX : (1U << bpp) - 1;
     uint64_t b = 0;
     unsigned bfill = 0;
-    unsigned bcnt = 0; // how many q-parts in b
     struct Q Q; Q_init(&Q);
     int bal = 0; // balance between SIMD blocks and the q-bitstream
     unsigned ctl = 0; // loop control correction, see below
@@ -159,8 +160,8 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 	    pack(odv, s, b);					\
 	    s += ks;						\
 	    if (ke) {						\
+		bal += popcnt32(b & Mask(ke));			\
 		b >>= ke, bfill -= ke;				\
-		bal += bcnt, bcnt = 0;				\
 	    }							\
 	    bal -= kn;						\
 	}							\
@@ -172,9 +173,9 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 	    default:s[1] = base64[(b>>06)&63];			\
 		    s[0] = base64[(b>>00)&63];			\
 	    }							\
+	    bal += popcnt32(b & Mask(6 * kq));			\
 	    b >>= 6 * kq, bfill -= 6 * kq;			\
 	    s += kq, len -= kq;					\
-	    bal += bcnt, bcnt = 0;				\
 	    continue;						\
 	}							\
 	break;							\
@@ -195,7 +196,7 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 	    bfill += dv[i] >> m;
 	    FLUSH1;
 	    b |= (1U << bfill);
-	    bfill++, bcnt++;
+	    bfill++;
 	    FLUSH1;
 	}
 	// The condition in the loop control must be the same as in the
@@ -205,7 +206,7 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 	ctl = (bfill > ke * Q_nblock(&Q, kn)) ? (len < kq ? len : kq) : 0;
     }
 
-    assert(bal + bcnt - Q_nblock(&Q, kn) * kn == 0);
+    assert(bal + popcnt32(b) - Q_nblock(&Q, kn) * kn == 0);
     if (Q_empty(&Q))
 	bal = 0;
 
