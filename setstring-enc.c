@@ -132,7 +132,29 @@ static inline uint32_t *Q_pop(struct Q *Q, unsigned n)
     return v;
 }
 
-#define popcnt32 __builtin_popcount
+#define U128 __uint128_t
+#define popcnt32 (unsigned)__builtin_popcount
+#define popcnt64 (unsigned)__builtin_popcountll
+#define popcnt128(x) (unsigned)(popcnt64(x) + popcnt64((U128)(x) >> 64))
+
+static inline bool needMore1(U128 b, unsigned bfill, int bal, struct Q *Q,
+	unsigned kn, unsigned ke, unsigned kq)
+{
+    for (unsigned i = 0; ke && i < Q_nblock(Q, kn); i++) {
+	while (bal < 0) {
+	    if (bfill < 6 * kq)
+		return true;
+	    bal += popcnt32(b & Mask(6 * kq));
+	    b >>= 6 * kq, bfill -= 6 * kq;
+	}
+	if (bfill < ke)
+	    return true;
+	bal -= kn / 2 + kn % 2;
+	bal += popcnt32(b & Mask(ke));
+	b >>= ke, bfill -= ke;
+    }
+    return false;
+}
 
 static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 	void (*pack)(const uint32_t *v, char *s, unsigned e),
@@ -147,41 +169,70 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
     *s++ = m - 5 + 'A';
     uint32_t v0 = (uint32_t) -1;
     uint32_t vmax = (bpp == 32) ? UINT32_MAX : (1U << bpp) - 1;
-    uint64_t b = 0;
-    unsigned bfill = 0;
+    U128 b = 0, b2 = 0;
+    unsigned bfill = 0, b2fill = 0;
     struct Q Q; Q_init(&Q);
-    int bal = 0; // balance between SIMD blocks and the q-bitstream
+    int bal = 0, bal2 = 0; // balance between SIMD blocks and the q-bitstream
     unsigned ctl = 0; // loop control correction, see below
+
+#define PutRBlock						\
+    do {							\
+	uint32_t *odv = Q_pop(&Q, kn);				\
+	pack(odv, s, b);					\
+	s += ks; /* len is deremented elsewhere */		\
+	if (ke) {						\
+	    bal += popcnt32(b & Mask(ke));			\
+	    b >>= ke, bfill -= ke;				\
+	}							\
+    } while (0)
+
+#define PutQSeg(b)						\
+    do {							\
+	switch (kq) {						\
+	case 5: s[4] = base64[(b>>24)&63]; /* FALLTHRU */	\
+	case 4: s[3] = base64[(b>>18)&63]; /* FALLTHRU */	\
+	case 3: s[2] = base64[(b>>12)&63]; /* FALLTHRU */	\
+	default:s[1] = base64[(b>>06)&63];			\
+		s[0] = base64[(b>>00)&63];			\
+	}							\
+	b >>= 6 * kq, b##fill -= 6 * kq;			\
+	s += kq, len -= kq;					\
+    } while (0)
 
 #define FLUSH1							\
     do {							\
 	while (bal >= 0 && bfill >= ke && !Q_empty(&Q)) {	\
-	    uint32_t *odv = Q_pop(&Q, kn);			\
-	    pack(odv, s, b);					\
-	    s += ks;						\
-	    if (ke) {						\
-		bal += popcnt32(b & Mask(ke));			\
-		b >>= ke, bfill -= ke;				\
-	    }							\
+	    PutRBlock;						\
 	    bal -= kn;						\
 	}							\
 	if (len >= kq && bfill >= 6 * kq) {			\
-	    switch (kq) {					\
-	    case 5: s[4] = base64[(b>>24)&63]; /* FALLTHRU */	\
-	    case 4: s[3] = base64[(b>>18)&63]; /* FALLTHRU */	\
-	    case 3: s[2] = base64[(b>>12)&63]; /* FALLTHRU */	\
-	    default:s[1] = base64[(b>>06)&63];			\
-		    s[0] = base64[(b>>00)&63];			\
-	    }							\
 	    bal += popcnt32(b & Mask(6 * kq));			\
-	    b >>= 6 * kq, bfill -= 6 * kq;			\
-	    s += kq, len -= kq;					\
+	    PutQSeg(b);						\
 	    continue;						\
 	}							\
 	break;							\
     } while (1)
 
-    while (len - ctl >= ks + ko && 6 * (len - ctl) > 5 + enc_xblen(m, kn, v0, vmax)) {
+#define FLUSH2							\
+    do {							\
+	while (bal >= 0 && bal2 >= 0 && bfill >= ke && !Q_empty(&Q)) { \
+	    PutRBlock;						\
+	    bal -= kn / 2 + kn % 2, bal2 -= kn / 2;		\
+	}							\
+	if (len >= kq && bfill >= 6 * kq && bal < 0 && (kn % 2 ? bal < bal2 : bal <= bal2)) { \
+	    bal += popcnt32(b & Mask(6 * kq));			\
+	    PutQSeg(b);						\
+	    continue;						\
+	}							\
+	if (len >= kq && b2fill >= 6 * kq && bal2 < 0 && (kn % 2 ? bal2 <= bal : bal2 < bal)) { \
+	    bal2 += popcnt32(b2 & Mask(6 * kq));		\
+	    PutQSeg(b2);					\
+	    continue;						\
+	}							\
+	break;							\
+    } while (1)
+
+    while (len - ctl >= ks + ko && 6 * (len - ctl) > 66 + enc_xblen(m, kn, v0, vmax)) {
 	// Make a block of deltas.
 	uint32_t *dv = Q_push(&Q, kn);
 	for (unsigned i = 0; i < kn; i++) {
@@ -192,59 +243,119 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 	v += kn;
 	len -= ks; // not yet written, but must be accounted for
 	// Write the bitstream and flush the blocks along the way.
-	for (unsigned i = 0; i < kn; i++) {
+	for (unsigned i = 0; i < (kn & ~1); i += 2) {
 	    bfill += dv[i] >> m;
-	    FLUSH1;
-	    b |= (1U << bfill);
+	    FLUSH2;
+	    assert(bfill < 128);
+	    b |= ((U128) 1 << bfill);
 	    bfill++;
-	    FLUSH1;
+	    FLUSH2;
+	    b2fill += dv[i+1] >> m;
+	    FLUSH2;
+	    assert(b2fill < 128);
+	    b2 |= ((U128) 1 << b2fill);
+	    b2fill++;
+	    FLUSH2;
+	}
+	if (kn % 2) {
+	    bfill += dv[kn-1] >> m;
+	    FLUSH2;
+	    assert(bfill < 128);
+	    b |= ((U128) 1 << bfill);
+	    bfill++;
+	    FLUSH2;
 	}
 	// The condition in the loop control must be the same as in the
 	// decoder.  In the decoder, the condition is checked after all
 	// the necessary q-bits from the previous iteration have been read.
 	// Therefore, we must account for the pending q-bits.
-	ctl = (bfill > ke * Q_nblock(&Q, kn)) ? (len < kq ? len : kq) : 0;
+	ctl = 0;
+	if (bfill > ke * Q_nblock(&Q, kn)) {
+	    size_t bits = bfill - ke * Q_nblock(&Q, kn);
+	    unsigned segs = (bits + 6 * kq - 1) / (6 * kq);
+	    ctl = (len < segs * kq) ? len : segs * kq;
+	}
+	if (b2fill) {
+	    unsigned segs = (b2fill + 6 * kq - 1) / (6 * kq);
+	    ctl += (len - ctl < segs * kq) ? len - ctl : segs * kq;
+	}
     }
 
-    assert(bal + popcnt32(b) - Q_nblock(&Q, kn) * kn == 0);
+    assert(bal  + popcnt128(b)  - Q_nblock(&Q, kn) * (kn / 2 + kn % 2) == 0);
+    assert(bal2 + popcnt128(b2) - Q_nblock(&Q, kn) * (kn / 2) == 0);
+
+    if (bfill && b2fill)
+	assert(len >= 2 * kq);
+    else if (bfill || b2fill)
+	assert(len >= kq);
+
+#define NeedMore1 (ke ? needMore1(b, bfill, bal, &Q, kn, ke, kq) : 0)
+
+#define AddBit(bit)						\
+    do {							\
+	if (b2fill == 0) {					\
+	    if (bfill == 0) assert(b == 0);			\
+	    b |= (U128)(bit) << bfill++;			\
+	    FLUSH2x;						\
+	    break;						\
+	}							\
+	if ((bfill - Q_nblock(&Q, kn) * ke) % (6 * kq) || NeedMore1) { \
+	    b |= (U128)(bit) << bfill++;			\
+	}							\
+	else {							\
+	    assert(b2fill % (6 * kq));				\
+	    b2 |= (U128)(bit) << b2fill++;			\
+	}							\
+	if ((bfill - Q_nblock(&Q, kn) * ke) % (6 * kq) || NeedMore1 || b2fill % (6 * kq)) \
+	    break;						\
+	FLUSH2;							\
+	assert(b2fill == 0);					\
+    } while (0)
+
+#define FLUSH2x							\
+    do {							\
+	while (bal >= 0 && bfill >= ke && !Q_empty(&Q)) {	\
+	    PutRBlock;						\
+	    bal -= kn / 2 + kn % 2;				\
+	}							\
+	if (len >= kq && bfill >= 6 * kq) {			\
+	    bal += popcnt32(b & Mask(6 * kq));			\
+	    PutQSeg(b);						\
+	    continue;						\
+	}							\
+	break;							\
+    } while (1)
 
     uint32_t rmask = (1U << m) - 1;
     while (v < v_end) {
 	uint32_t v1 = *v++;
 	uint32_t dv = v1 - v0 - 1;
 	v0 = v1;
-	bfill += dv >> m;
-	FLUSH1;
-	b |= (1U << bfill);
-	bfill++;
-	dv &= rmask;
-	b |= (uint64_t) dv << bfill;
-	bfill += m;
-	FLUSH1;
-    }
-
-    if (!Q_empty(&Q)) {
-	if (bal < 0) {
-	    assert(bfill > 6 * (kq - 1));
-	    switch (kq) {
-	    case 5: s[4] = base64[(b>>24)&63]; // FALLTHRU
-	    case 4: s[3] = base64[(b>>18)&63]; // FALLTHRU
-	    case 3: s[2] = base64[(b>>12)&63]; // FALLTHRU
-	    default:s[1] = base64[(b>>06)&63];
-		    s[0] = base64[(b>>00)&63];
-	    }
-	    s += kq, len -= kq;
-	    b = 0, bfill = 0;
-	    bal = 0;
+	uint32_t q = dv >> m;
+	uint32_t r = dv & rmask;
+	if (b2fill == 0) {
+	    assert(bal2 >= 0);
+	    bfill += q;
+	    FLUSH2x;
+	    assert(bfill < 64);
+	    b |= (1ULL << bfill);
+	    bfill++;
+	    FLUSH2x;
+	    b |= (uint64_t) r << bfill;
+	    bfill += m;
+	    assert(bfill <= 64);
+	    FLUSH2x;
+	    continue;
 	}
-	do {
-	    uint32_t *odv = Q_pop(&Q, kn);
-	    pack(odv, s, b);
-	    s += ks;
-	    b >>= ke, bfill -= ke;
-	    if ((int) bfill < 0) bfill = 0;
-	} while (!Q_empty(&Q));
+	for (uint32_t i = 0; i < q; i++)
+	    AddBit(0);
+	AddBit(1);
+	for (uint32_t i = 0; i < (unsigned) m; i++)
+	    AddBit((r >> i) & 1);
     }
+    assert(b2fill == 0);
+    assert(Q_empty(&Q));
+
     if (bfill > 00) *s++ = base64[(b>>00)&63], len--;
     if (bfill > 06) *s++ = base64[(b>>06)&63], len--;
     if (bfill > 12) *s++ = base64[(b>>12)&63], len--;
@@ -277,7 +388,7 @@ static size_t encode##m(const uint32_t v[], size_t n, int bpp, char *s) \
     Routine(pack17x6c17,   17,  6, 17, 0, 0, 5) \
     Routine(pack18x5c15,   18,  5, 15, 0, 0, 5) \
     Routine(pack19x5c16e1, 19,  5, 16, 1, 0, 5) \
-    Routine(pack20x4c14e4, 20,  4, 14, 4, 0, 4) \
+    Routine(pack20x6c20,   20,  6, 20, 0, 0, 5) \
     Routine(pack21x4c14,   21,  4, 14, 0, 0, 5) \
     Routine(pack22x4c15e2, 22,  4, 15, 2, 0, 5) \
     Routine(pack23x4c16e4, 23,  4, 16, 4, 0, 4) \

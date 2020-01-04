@@ -44,19 +44,19 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
     uint32_t v0 = (uint32_t) -1;
     uint32_t vmax = (bpp == 32) ? UINT32_MAX : (1U << bpp) - 1;
     uint32_t *v_start = v;
-    uint32_t b = 0; // variable-length bitstream
-    unsigned bfill = 0;
+    uint64_t b = 0, b2 = 0; // variable-length bitstream
+    unsigned bfill = 0, b2fill = 0;
     s += 2, len -= 2;
-#define FILL(k)					\
+#define FILL(b, k)				\
     do {					\
 	b = base64dec##k(s);			\
 	if (unlikely((int32_t) b < 0))		\
 	    return 0;				\
-	bfill = 6 * k;				\
+	b##fill = 6 * k;			\
 	s += k, len -= k;			\
     } while (0)
     // Bulk decoding.
-    while (len >= ks + ko && 6 * len > 5 + dec_xblen(m, kn, v0, vmax)) {
+    while (len >= ks + ko && 6 * len > 66 + dec_xblen(m, kn, v0, vmax)) {
 	// Decode a block of m-bit integers.
 	unsigned e;
 	bool ok = unpack(s, v, &e);
@@ -68,7 +68,7 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
 	}
 	s += ks, len -= ks;
 	// Read the q-bits from the bitstream.
-	uint32_t *vend = v + kn;
+	uint32_t *vend = v + (kn & ~1);
 	do {
 	    uint32_t z, q;
 	    if (likely(b != 0))
@@ -78,19 +78,61 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
 		do {
 		    q += bfill;
 		    if (unlikely(len < kq))
-			switch (len) {
-			case 0: return 0;
-			case 1: FILL(1); break;
-			case 2: FILL(2); break;
-			case 3: FILL(3); break;
-			case 4: FILL(4); break;
-			}
+			return 0;
 		    else
 			switch (kq) {
-			case 2: FILL(2); break;
-			case 3: FILL(3); break;
-			case 4: FILL(4); break;
-			case 5: FILL(5); break;
+			case 2: FILL(b, 2); break;
+			case 3: FILL(b, 3); break;
+			case 4: FILL(b, 4); break;
+			case 5: FILL(b, 5); break;
+			}
+		} while (unlikely(b == 0));
+		z = __builtin_ctz(b), q += z;
+	    }
+	    uint32_t z2, q2;
+	    if (likely(b2 != 0))
+		z2 = __builtin_ctz(b2), q2 = z2;
+	    else {
+		q2 = 0;
+		do {
+		    q2 += b2fill;
+		    if (unlikely(len < kq))
+			return 0;
+		    else
+			switch (kq) {
+			case 2: FILL(b2, 2); break;
+			case 3: FILL(b2, 3); break;
+			case 4: FILL(b2, 4); break;
+			case 5: FILL(b2, 5); break;
+			}
+		} while (unlikely(b2 == 0));
+		z2 = __builtin_ctz(b2), q2 += z2;
+	    }
+	    z++, z2++;
+	    b >>= z, bfill -= z;
+	    b2 >>= z2, b2fill -= z2;
+	    v0 += v[0] + (q << m) + 1;
+	    v[0] = v0;
+	    v0 += v[1] + (q2 << m) + 1;
+	    v[1] = v0;
+	    v += 2;
+	} while (v < vend);
+	if (kn % 2) {
+	    uint32_t z, q;
+	    if (likely(b != 0))
+		z = __builtin_ctz(b), q = z;
+	    else {
+		q = 0;
+		do {
+		    q += bfill;
+		    if (unlikely(len < kq))
+			return 0;
+		    else
+			switch (kq) {
+			case 2: FILL(b, 2); break;
+			case 3: FILL(b, 3); break;
+			case 4: FILL(b, 4); break;
+			case 5: FILL(b, 5); break;
 			}
 		} while (unlikely(b == 0));
 		z = __builtin_ctz(b), q += z;
@@ -99,8 +141,9 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
 	    b >>= z, bfill -= z;
 	    v0 += *v + (q << m) + 1;
 	    *v++ = v0;
-	} while (v < vend);
+	}
     }
+    b |= b2 << bfill, bfill += b2fill;
     // Read the rest from the bitstream.
     uint32_t rmask = (1U << m) - 1;
     while (len || b) {
@@ -108,9 +151,9 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
 	while (b == 0) {
 	    q += bfill;
 	    if (likely(len > 1))
-		FILL(2);
+		FILL(b, 2);
 	    else if (likely(len == 1))
-		FILL(1);
+		FILL(b, 1);
 	    else
 		return 0;
 	}
@@ -121,9 +164,9 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
 	int rfill = bfill, left;
 	while ((left = rfill - m) < 0) {
 	    if (likely(len > 1))
-		FILL(2);
+		FILL(b, 2);
 	    else if (likely(len == 1))
-		FILL(1);
+		FILL(b, 1);
 	    else
 		return 0;
 	    r |= b << rfill;
@@ -159,7 +202,7 @@ static size_t decode##m(const char *s, size_t len, int bpp, uint32_t v[]) \
     Routine(unpack17x6c17,     17,  6, 17, 0, 0, 5) \
     Routine(unpack18x5c15,     18,  5, 15, 0, 0, 5) \
     Routine(unpack19x5c16e1,   19,  5, 16, 1, 0, 5) \
-    Routine(unpack20x4c14e4,   20,  4, 14, 4, 0, 4) \
+    Routine(unpack20x6c20,     20,  6, 20, 0, 0, 5) \
     Routine(unpack21x4c14,     21,  4, 14, 0, 0, 5) \
     Routine(unpack22x4c15e2,   22,  4, 15, 2, 0, 5) \
     Routine(unpack23x4c16e4,   23,  4, 16, 4, 0, 4) \
