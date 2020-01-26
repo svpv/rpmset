@@ -690,6 +690,28 @@ static inline bool unpack20x4c14e4(const char *s, uint32_t *v, unsigned *e)
     return true;
 }
 
+static inline bool unpack20x6c20(const char *s, uint32_t *v, unsigned *e)
+{
+    int32_t x;
+    x = base64dec5(s + 0);
+    if (x < 0) return false;
+    v[0]  = (x & Mask(20));
+    v[1]  = (x >> 20);
+    x = base64dec5(s + 5);
+    if (x < 0) return false;
+    v[1] |= (x & Mask(10)) << 10;
+    v[2]  = (x >> 10);
+    x = base64dec5(s + 10);
+    if (x < 0) return false;
+    v[3]  = (x & Mask(20));
+    v[4]  = (x >> 20);
+    x = base64dec5(s + 15);
+    if (x < 0) return false;
+    v[4] |= (x & Mask(10)) << 10;
+    v[5]  = (x >> 10);
+    return (void) e, true;
+}
+
 static inline bool unpack21x4c14(const char *s, uint32_t *v, unsigned *e)
 {
     int32_t x;

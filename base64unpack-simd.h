@@ -726,6 +726,27 @@ static inline bool unpack20x4c14e4(const char *s, uint32_t *v, unsigned *e)
     return true;
 }
 
+static inline bool unpack20x6c20(const char *s, uint32_t *v, unsigned *e)
+{
+    V32x4 x;
+    if (!unpack24(s, &x)) return false;
+    uint32_t d = VEXTR32(x, 3);
+    x = VSHUF8(x, V8x16_C(
+	    -1, 0, 1, 2, -1, 2,  4,  5,
+	    -1, 6, 8, 9, -1, 9, 10, 12));
+#if VSHLV32_COST >= 2
+    x = VBLEND16(x, VSHL32(x, 4), 0x33);
+#else
+    x = VSHLV32(x, 4, 0, 4, 0);
+#endif
+    VSTORE(v, VSHR32(x, 12));
+    int32_t b = base64dec4(s + 16);
+    if (b < 0) return false;
+    v[4] = (d >> 8) | (b & Mask(4)) << 16;
+    v[5] = (b >> 4);
+    return (void) e, true;
+}
+
 static inline bool unpack21x4c14(const char *s, uint32_t *v, unsigned *e)
 {
     V32x4 x;
