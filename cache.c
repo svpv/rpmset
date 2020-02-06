@@ -3,6 +3,9 @@
 #include <string.h>
 #include <assert.h>
 #include <pthread.h>
+#ifdef __SSE2__
+#include <emmintrin.h>
+#endif
 
 #define likely(x) __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(x, 0)
@@ -50,4 +53,44 @@ static struct cache *cache_tlsobj(void)
     int rc = pthread_setspecific(cache_key, C);
     assert(rc == 0);
     return C;
+}
+
+// To find a cache entry corresponding to a set-string, we hash a few bytes
+// near the beginning of the string and run a linear search with a sentinel.
+
+static inline uint16_t hash16(const char *s, size_t len)
+{
+    uint32_t h;
+    memcpy(&h, s + 4, 4);
+    h *= 2654435761U;
+    h += len << 16;
+    return h >> 16;
+}
+
+static uint16_t *cache_find16(uint16_t *hp, uint16_t h)
+{
+#ifdef __SSE2__
+    unsigned mask;
+    __m128i xmm0 = _mm_set1_epi16(h);
+    do {
+	__m128i xmm1 = _mm_loadu_si128((void *)(hp + 0));
+	__m128i xmm2 = _mm_loadu_si128((void *)(hp + 8));
+	hp += 16;
+	xmm1 = _mm_cmpeq_epi16(xmm1, xmm0);
+	xmm2 = _mm_cmpeq_epi16(xmm2, xmm0);
+	xmm1 = _mm_packs_epi16(xmm1, xmm2);
+	mask = _mm_movemask_epi8(xmm1);
+    } while (mask == 0);
+    hp -= 16;
+    hp += __builtin_ctz(mask);
+    return hp;
+#else
+    while (1) {
+	if (unlikely(hp[0] == h)) return hp + 0;
+	if (unlikely(hp[1] == h)) return hp + 1;
+	if (unlikely(hp[2] == h)) return hp + 2;
+	if (unlikely(hp[3] == h)) return hp + 3;
+	hp += 4;
+    }
+#endif
 }
