@@ -75,13 +75,19 @@ static uint16_t *cache_find16(uint16_t *hp, uint16_t h)
     do {
 	__m128i xmm1 = _mm_loadu_si128((void *)(hp + 0));
 	__m128i xmm2 = _mm_loadu_si128((void *)(hp + 8));
-	hp += 16;
+	__m128i xmm3 = _mm_loadu_si128((void *)(hp + 16));
+	__m128i xmm4 = _mm_loadu_si128((void *)(hp + 24));
+	hp += 32;
 	xmm1 = _mm_cmpeq_epi16(xmm1, xmm0);
 	xmm2 = _mm_cmpeq_epi16(xmm2, xmm0);
+	xmm3 = _mm_cmpeq_epi16(xmm3, xmm0);
+	xmm4 = _mm_cmpeq_epi16(xmm4, xmm0);
 	xmm1 = _mm_packs_epi16(xmm1, xmm2);
+	xmm3 = _mm_packs_epi16(xmm3, xmm4);
 	mask = _mm_movemask_epi8(xmm1);
+	mask |= (unsigned) _mm_movemask_epi8(xmm3) << 16;
     } while (mask == 0);
-    hp -= 16;
+    hp -= 32;
     hp += __builtin_ctz(mask);
     return hp;
 #else
