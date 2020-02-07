@@ -3,6 +3,9 @@
 #include <string.h>
 #include <assert.h>
 #include <pthread.h>
+#ifdef __SSE__
+#include <xmmintrin.h>
+#endif
 #ifdef __SSE2__
 #include <emmintrin.h>
 #endif
@@ -98,5 +101,67 @@ static uint16_t *cache_find16(uint16_t *hp, uint16_t h)
 	if (unlikely(hp[3] == h)) return hp + 3;
 	hp += 4;
     }
+#endif
+}
+
+/* Our cache replacement policy is similar to LRU.  When an item x is accessed,
+ * it has to be moved to front.  Instead of moving it all the way to the front
+ * though, we only promote it by a fixed amount, as shown in (a).  To this end
+ * we devise a SIMD-friendly primitive which moves items to the right.
+ *
+ * This very same primitive is employed when a new items y gets inserted.
+ * The arrangement at the end of array is shown in (b): z is the last element
+ * and the victim, so it has to be freed before the move.
+ *
+ *     -+---+---+---+---+---+-           -+---+---+---+---+---+
+ *      | a | b | c | d | x |->-,         | a | b | c | d | z |->
+ *     -+---+---+---+---+---+-  :        -+---+---+---+---+---+
+ *       \               \      :          \               \
+ *        \     move      \     :           \     move      \
+ *         \               \    v            \               \
+ *     -+---+---+---+---+---+-  :        -+---+---+---+---+---+
+ *      | x | a | b | c | d |   :         | y | a | b | c | d |
+ *     -+---+---+---+---+---+-  :        -+---+---+---+---+---+
+ *        ^                     :           ^
+ *        `- - - - - - - - - - -'           '
+ *            (a) update                       (b) insert
+ */
+
+#define MOVE_SIZE 32
+
+#ifdef __SSE__
+static inline void memmove64(void *dst, const void *src)
+{
+    __m128 *q = dst;
+    const __m128 *p = src;
+    // Compared to movdqu, movups is encoded with one fewer byte.
+    __m128 xmm0 = _mm_loadu_ps((void *)(p + 0));
+    __m128 xmm1 = _mm_loadu_ps((void *)(p + 1));
+    __m128 xmm2 = _mm_loadu_ps((void *)(p + 2));
+    __m128 xmm3 = _mm_loadu_ps((void *)(p + 3));
+    _mm_storeu_ps((void *)(q + 0), xmm0);
+    _mm_storeu_ps((void *)(q + 1), xmm1);
+    _mm_storeu_ps((void *)(q + 2), xmm2);
+    _mm_storeu_ps((void *)(q + 3), xmm3);
+}
+#endif
+
+static void cache_move(uint16_t *hp, struct cache_ent **ep)
+{
+#ifdef __SSE__
+    memmove64(hp + 1, hp);
+    if (sizeof *ep == 4) {
+	memmove64(ep + 17, ep + 16);
+	memmove64(ep +  1, ep +  0);
+    }
+    else {
+	memmove64(ep + 25, ep + 24);
+	memmove64(ep + 17, ep + 16);
+	memmove64(ep +  9, ep +  8);
+	memmove64(ep +  1, ep +  0);
+    }
+#else
+    memmove(hp + 1, hp, MOVE_SIZE * sizeof *hp);
+    memmove(ep + 1, ep, MOVE_SIZE * sizeof *ep);
 #endif
 }
