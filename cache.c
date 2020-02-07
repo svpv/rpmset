@@ -9,6 +9,7 @@
 #ifdef __SSE2__
 #include <emmintrin.h>
 #endif
+#include "setstring.h"
 
 #define likely(x) __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(x, 0)
@@ -128,6 +129,7 @@ static uint16_t *cache_find16(uint16_t *hp, uint16_t h)
  */
 
 #define MOVE_SIZE 32
+#define INSERT_AT (CACHE_SIZE - MOVE_SIZE - 1)
 
 #ifdef __SSE__
 static inline void memmove64(void *dst, const void *src)
@@ -164,4 +166,81 @@ static void cache_move(uint16_t *hp, struct cache_ent **ep)
     memmove(hp + 1, hp, MOVE_SIZE * sizeof *hp);
     memmove(ep + 1, ep, MOVE_SIZE * sizeof *ep);
 #endif
+}
+
+// Putin it all together.
+
+struct cache_ent {
+    // The number of decoded values.
+    unsigned n;
+    // The original string, null-terminated.
+    char s[];
+    // Followed by uint32_t v[n], aligned to a 4-byte boundary.
+#define ENT_STRSIZE(len) ((len + 1 + 4) & ~3)
+#define ENT_V(e, len) ((uint32_t *)(e->s + ENT_STRSIZE(len)))
+    // Followed by a few UINT32_MAX sentinels.
+#define SENTINELS 4
+};
+
+size_t cache_decode(const char *s, size_t len, const uint32_t **pv)
+{
+    struct cache *C = cache_tlsobj();
+    uint16_t h = hash16(s, len);
+    size_t i; // entry index
+    struct cache_ent *e;
+    // Install a sentinel.
+    C->hv[C->n] = h;
+    uint16_t *hp = C->hv;
+    while (1) {
+	// Find by hash.
+	hp = cache_find16(hp, h);
+	i = hp - C->hv;
+	// Found the sentinel?
+	if (unlikely(i == C->n))
+	    break;
+	// Found an entry.
+	e = C->ev[i];
+	// Recheck the entry.
+	if (unlikely(memcmp(e->s, s, len) || e->s[len])) {
+	    hp++;
+	    continue;
+	}
+	// Hit, move to front.
+	if (i >= MOVE_SIZE) {
+	    i -= MOVE_SIZE;
+	    cache_move(C->hv + i, C->ev + i);
+	    C->hv[i] = h, C->ev[i] = e;
+	}
+	*pv = ENT_V(e, len);
+	return e->n;
+    }
+    // Miss, decode.
+    int bpp;
+    size_t n = setstring_decinit(s, len, &bpp);
+    if (unlikely(n == 0))
+	return 0;
+    e = malloc(sizeof(*e) + ENT_STRSIZE(len) + (n + SENTINELS) * 4);
+    assert(e);
+    uint32_t *v = ENT_V(e, len);
+    n = setstring_decode(s, len, bpp, v);
+    if (unlikely(n == 0))
+	return free(e), 0;
+    e->n = n;
+    memset(v + n, 0xff, SENTINELS * 4);
+    memset(v - 1, 0, 4);
+    memcpy(e->s, s, len);
+    // Insert.
+    if (unlikely(C->n <= INSERT_AT))
+	i = C->n++;
+    else {
+	if (unlikely(C->n < CACHE_SIZE))
+	    C->n++;
+	else
+	    free(C->ev[CACHE_SIZE-1]);
+	i = INSERT_AT;
+	cache_move(C->hv + i, C->ev + i);
+    }
+    C->hv[i] = h, C->ev[i] = e;
+    *pv = v;
+    return n;
 }
