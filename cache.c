@@ -176,7 +176,7 @@ struct cache_ent {
     // The original string, null-terminated.
     char s[];
     // Followed by uint32_t v[n], aligned to a 4-byte boundary.
-#define ENT_STRSIZE(len) ((len + 1 + 4) & ~3)
+#define ENT_STRSIZE(len) ((len + 1 + 3) & ~3)
 #define ENT_V(e, len) ((uint32_t *)(e->s + ENT_STRSIZE(len)))
     // Followed by a few UINT32_MAX sentinels.
 #define SENTINELS 4
