@@ -1,5 +1,4 @@
-#include <stdint.h>
-#include <stddef.h>
+#include "rpmsetcmp-common.h"
 
 size_t downsample(const uint32_t *v, size_t n, uint32_t *w, int bpp)
 {

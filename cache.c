@@ -1,6 +1,4 @@
-#include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
 #include <assert.h>
 #include <pthread.h>
 #ifdef __SSE__
@@ -10,9 +8,7 @@
 #include <emmintrin.h>
 #endif
 #include "setstring.h"
-
-#define likely(x) __builtin_expect(!!(x), 1)
-#define unlikely(x) __builtin_expect(x, 0)
+#include "rpmsetcmp-common.h"
 
 #define CACHE_SIZE (256 - 2)
 
@@ -179,7 +175,6 @@ struct cache_ent {
 #define ENT_STRSIZE(len) ((len + 1 + 3) & ~3)
 #define ENT_V(e, len) ((uint32_t *)(e->s + ENT_STRSIZE(len)))
     // Followed by a few UINT32_MAX sentinels.
-#define SENTINELS 4
 };
 
 size_t cache_decode(const char *s, size_t len, const uint32_t **pv)

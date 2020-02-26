@@ -1,5 +1,4 @@
-#include <stdint.h>
-#include <stddef.h>
+#include "rpmsetcmp-common.h"
 
 int setcmploop(const uint32_t *Pv, size_t Pn,
 	       const uint32_t *Rv, size_t Rn)
