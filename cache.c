@@ -221,7 +221,7 @@ size_t cache_decode(const char *s, size_t len, const uint32_t **pv)
     if (unlikely(n == 0))
 	return free(e), 0;
     e->n = n;
-    memset(v + n, 0xff, SENTINELS * 4);
+    install_sentinels(v, n);
     memset(v - 1, 0, 4);
     memcpy(e->s, s, len);
     // Insert.

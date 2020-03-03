@@ -4,74 +4,112 @@
 #include "rpmsetcmp-common.h"
 #include "setstring.h"
 
-// Compare with downsampling (Pbpp != Rbpp).
-static int setcmp_withD(const uint32_t *Pv, size_t Pn, int Pbpp,
-			      uint32_t *Rv, size_t Rn, int Rbpp)
-{
-    if (likely(Pbpp > Rbpp)) {
-	if (Pn > 1024) {
-	    uint32_t *Pw = malloc((Pn + SENTINELS) * 4);
-	    assert(Pw);
-	    Pn = downsample(Pv, Pn, Pw, Pbpp - Rbpp);
-	    memset(Pw + Pn, 0xff, SENTINELS * 4);
-	    int ret = setcmploop(Pw, Pn, Rv, Rn);
-	    free(Pw);
-	    return ret;
-	}
-	uint32_t Pw[Pn+SENTINELS];
-	Pn = downsample(Pv, Pn, Pw, Pbpp - Rbpp);
-	memset(Pw + Pn, 0xff, SENTINELS * 4);
-	return setcmploop(Pw, Pn, Rv, Rn);
-    }
-    Rn = downsample(Rv, Rn, Rv, Rbpp - Pbpp);
-    return setcmploop(Pv, Pn, Rv, Rn);
-}
+#define CACHE_MINLEN 128
+#define STACK_MAXV1 1024
+#define STACK_MAXV2 1280
+#define xmalloc malloc
+#define vmalloc(n) xmalloc((n) * 4)
 
 int rpmsetcmp(const char *Ps, size_t Plen, const char *Rs, size_t Rlen)
 {
-    int Pbpp;
-    size_t Pn;
-    const uint32_t *Pv;
-    uint32_t Pa[128+SENTINELS];
-    if (likely(Plen >= 128)) {
-	Pn = cache_decode(Ps, Plen, &Pv);
-	if (unlikely(!Pn))
-	    return -3;
-	Pbpp = *Ps - 'a' + 7;
-    }
-    else {
+    size_t Pn, Rn;
+    int Pbpp, Rbpp;
+    if (unlikely(Plen < CACHE_MINLEN)) {
 	Pn = setstring_decinit(Ps, Plen, &Pbpp);
 	if (unlikely(!Pn))
 	    return -3;
-	Pn = setstring_decode(Ps, Plen, Pbpp, Pa);
+	uint32_t Pv[Pn+SENTINELS];
+	Pn = setstring_decode(Ps, Plen, Pbpp, Pv);
 	if (unlikely(!Pn))
 	    return -3;
-	memset(Pa + Pn, 0xff, SENTINELS * 4);
-	Pv = Pa;
-    }
-    int Rbpp;
-    size_t Rn = setstring_decinit(Rs, Rlen, &Rbpp);
-    if (unlikely(!Rn))
-	return -4;
-    if (Rn > 1024) {
-	uint32_t *Rv = malloc(Rn * 4);
-	assert(Rv);
+	Rn = setstring_decinit(Rs, Rlen, &Rbpp);
+	if (unlikely(!Rn))
+	    return -4;
+	if (unlikely(Pbpp > Rbpp))
+	    Pn = downsample(Pv, Pn, Pv, Pbpp - Rbpp);
+	install_sentinels(Pv, Pn);
+	if (likely(Rn < STACK_MAXV1)) {
+	    uint32_t Rv[Rn];
+	    Rn = setstring_decode(Rs, Rlen, Rbpp, Rv);
+	    if (unlikely(!Rn))
+		return -4;
+	    if (unlikely(Rbpp > Pbpp))
+		Rn = downsample(Rv, Rn, Rv, Rbpp - Pbpp);
+	    return setcmploop(Pv, Pn, Rv, Rn);
+	}
+	uint32_t *Rv = vmalloc(Rn);
 	Rn = setstring_decode(Rs, Rlen, Rbpp, Rv);
 	int ret;
 	if (unlikely(!Rn))
 	    ret = -4;
-	else if (likely(Pbpp == Rbpp))
+	else {
+	    if (unlikely(Rbpp > Pbpp))
+		Rn = downsample(Rv, Rn, Rv, Rbpp - Pbpp);
 	    ret = setcmploop(Pv, Pn, Rv, Rn);
-	else
-	    ret = setcmp_withD(Pv, Pn, Pbpp, Rv, Rn, Rbpp);
+	}
 	free(Rv);
 	return ret;
     }
-    uint32_t Rv[Rn];
-    Rn = setstring_decode(Rs, Rlen, Rbpp, Rv);
+    const uint32_t *Pv;
+    Pn = cache_decode(Ps, Plen, &Pv);
+    if (unlikely(!Pn))
+	return -3;
+    Pbpp = *Ps - 'a' + 7;
+    Rn = setstring_decinit(Rs, Rlen, &Rbpp);
     if (unlikely(!Rn))
 	return -4;
-    if (likely(Pbpp == Rbpp))
-	return setcmploop(Pv, Pn, Rv, Rn);
-    return setcmp_withD(Pv, Pn, Pbpp, Rv, Rn, Rbpp);
+    if (likely(Rbpp >= Pbpp)) {
+	if (likely(Rn < STACK_MAXV1)) {
+	    uint32_t Rv[Rn];
+	    Rn = setstring_decode(Rs, Rlen, Rbpp, Rv);
+	    if (unlikely(!Rn))
+		return -4;
+	    if (unlikely(Rbpp > Pbpp))
+		Rn = downsample(Rv, Rn, Rv, Rbpp - Pbpp);
+	    return setcmploop(Pv, Pn, Rv, Rn);
+	}
+	uint32_t *Rv = vmalloc(Rn);
+	Rn = setstring_decode(Rs, Rlen, Rbpp, Rv);
+	int ret;
+	if (unlikely(!Rn))
+	    ret = -4;
+	else {
+	    if (unlikely(Rbpp > Pbpp))
+		Rn = downsample(Rv, Rn, Rv, Rbpp - Pbpp);
+	    ret = setcmploop(Pv, Pn, Rv, Rn);
+	}
+	free(Rv);
+	return ret;
+    }
+    if (likely(Rn < STACK_MAXV1)) {
+	uint32_t Rv[Rn];
+	Rn = setstring_decode(Rs, Rlen, Rbpp, Rv);
+	if (unlikely(!Rn))
+	    return -4;
+	if (Pn + Rn < STACK_MAXV2) {
+	    uint32_t Pw[Pn+SENTINELS];
+	    Pn = downsample(Pv, Pn, Pw, Pbpp - Rbpp);
+	    install_sentinels(Pw, Pn);
+	    return setcmploop(Pw, Pn, Rv, Rn);
+	}
+	uint32_t *Pw = vmalloc(Pn + SENTINELS);
+	Pn = downsample(Pv, Pn, Pw, Pbpp - Rbpp);
+	install_sentinels(Pw, Pn);
+	int ret = setcmploop(Pw, Pn, Rv, Rn);
+	free(Pw);
+	return ret;
+    }
+    uint32_t *Rv = vmalloc(Rn + Pn + SENTINELS);
+    Rn = setstring_decode(Rs, Rlen, Rbpp, Rv);
+    int ret;
+    if (unlikely(!Rn))
+	ret = -4;
+    else {
+	uint32_t *Pw = Rv + Rn;
+	Pn = downsample(Pv, Pn, Pw, Pbpp - Rbpp);
+	install_sentinels(Pw, Pn);
+	ret = setcmploop(Pw, Pn, Rv, Rn);
+    }
+    free(Rv);
+    return ret;
 }
