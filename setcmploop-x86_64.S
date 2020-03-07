@@ -31,8 +31,8 @@ FUNC(setcmploop)
 	lea (Rv,Rend,4),Rend
 	mov (Rv),Rval
 	mov (Pv),Pval
-	mov $1,Le
-	mov $1,Ge
+	mov $8,Le
+	mov $8,Ge
 	jae L2(cmp)
 
 	// Probe Pv with step=2.
@@ -46,12 +46,12 @@ L(ge):
 C(eq):
 	add $4,Pv
 	cmp Rv,Rend
-	je L(break)
+	je L(breakR)
 	mov (Rv),Rval
 	mov (Pv),Pval
 	cmp Pv,Pend
 	jne L(cmp)
-	jmp L(break)
+	jmp L(breakP)
 L(lt2):
 	cmp Rval,4*4(Pv)
 	jae L(found4)
@@ -71,7 +71,7 @@ C(found2):
 	mov (Pv),Pval
 	cmp Pv,Pend
 	jne L(ge)
-	jmp L(break)
+	jmp L(breakP)
 L(found4):
 	cmp Rval,3*4(Pv)
 	lea 4*4(Pv),Addr
@@ -81,7 +81,7 @@ L(found4):
 	mov (Pv),Pval
 	cmp Pv,Pend
 	jne L(ge)
-	jmp L(break)
+	jmp L(breakP)
 L(found6):
 	cmp Rval,5*4(Pv)
 	lea 5*4(Pv),Pv
@@ -90,11 +90,11 @@ L(found6):
 	mov (Pv),Pval
 	cmp Pv,Pend
 	jne L(ge)
-	jmp L(break)
+	jmp L(breakP)
 L(gt):
 	xor Ge,Ge
 	cmp Rv,Rend
-	je L(break)
+	je L(breakR)
 	mov (Rv),Rval
 	jmp L(cmp)
 
@@ -109,12 +109,12 @@ L2(ge):
 C2(eq):
 	add $4,Pv
 	cmp Rv,Rend
-	je L(break)
+	je L(breakR)
 	mov (Rv),Rval
 	mov (Pv),Pval
 	cmp Pv,Pend
 	jne L2(cmp)
-	jmp L(break)
+	jmp L(breakP)
 L2(lt2):
 	cmp Rval,8*4(Pv)
 	jae L2(found8)
@@ -137,7 +137,7 @@ C2(found4):
 	mov (Pv),Pval
 	cmp Pv,Pend
 	jne L2(ge)
-	jmp L(break)
+	jmp L(breakP)
 L2(found8):
 	cmp Rval,6*4(Pv)
 	lea 8*4(Pv),Addr
@@ -150,7 +150,7 @@ L2(found8):
 	mov (Pv),Pval
 	cmp Pv,Pend
 	jne L2(ge)
-	jmp L(break)
+	jmp L(breakP)
 L2(found12):
 	cmp Rval,10*4(Pv)
 	lea 10*4(Pv),Pv
@@ -162,35 +162,27 @@ L2(found12):
 	mov (Pv),Pval
 	cmp Pv,Pend
 	jne L2(ge)
-	jmp L(break)
+	jmp L(breakP)
 L2(gt):
 	xor Ge,Ge
 	cmp Rv,Rend
-	je L(break)
+	je L(breakR)
 	mov (Rv),Rval
 	jmp L2(cmp)
 
-L(break):
+L(breakP):
+	xor %eax,%eax
+	cmp Rv,Rend
+	cmovne %eax,Ge
+	jmp L(ret)
+L(breakR):
 	xor %eax,%eax
 	cmp Pv,Pend
 	cmovne %eax,Le
-	cmp Rv,Rend
-	cmovne %eax,Ge
-
-	test Le,Ge
-	jz 3f
-	ret
-3:
-	test Le,Le
-	jz 4f
-	mov $-1,%eax
-	ret
-4:
-	test Ge,Ge
-	jz 5f
-	mov $1,%eax
-	ret
-5:
-	mov $-2,%eax
+L(ret):
+	lea (Le,Ge,2),%ecx
+	mov $0x01fffe,%eax
+	shr %cl,%eax
+	movsbl %al,%eax
 	ret
 ENDF(setcmploop)
