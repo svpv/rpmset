@@ -74,3 +74,44 @@ compiler by explicitly spelling which conditions must be checked in each case.
 	    if (Rv == Rend) break;
 	}
 ```
+It now takes two comparisons to execute the `if` branch: `*Pv < *Rv` and
+`Pv == Pend`.
+
+## Breaking the symmetry
+
+While the cases of `*Pv < *Rv` and `*Pv > *Rv` are logically symmetric,
+the former is executed much more often.  This is because the Requires set is
+typically sparse, i.e. contains only a small subset of Provides.  We can take
+advantage of this asymmetry by introducing a tight inner loop which skips
+`Pv` elements:
+
+```c
+    uint32_t Rval = *Rv;
+    assert(Pv[Pn] == UINT32_MAX);
+    while (1) {
+	if (*Pv < Rval) {
+	    le = 0;
+	    do
+		Pv++;
+	    while (*Pv < Rval);
+	    if (Pv == Pend) break;
+	}
+	if (*Pv > Rval) {
+	    ge = 0, Rv++;
+	    if (Rv == Rend) break;
+	    Rval = *Rv;
+	}
+	else {
+	    Pv++, Rv++;
+	    if (Pv == Pend) break;
+	    if (Rv == Rend) break;
+	    Rval = *Rv;
+	}
+    }
+```
+We have introduced a separate register for `Rval = *Rv`, because it changes at
+a rate lower than `Pv`.  Once the case of `*Pv < Rval` is entered and `le` is
+cleared, a few more `Pv` elements are skipped quickly, until we encounter
+`*Pv >= Rval`, or until `Pv` is at `Pend`.  Both of these conditions can be
+tested with a single comparison, `*Pv < Rval`, if we install a sentinel at the
+end of `Pv` array: `Pv[Pn] = UINT32_MAX`.
