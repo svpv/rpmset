@@ -138,3 +138,55 @@ One reason why unrolling helps is that the load of `Pv[2]` can be issued
 speculatively, in parallel with the test for `Pv[1] >= Rval`.  This isn't
 possible without unrolling, because the load from the next `*Pv` has to wait for
 the increment to complete.
+
+## Stepping over
+
+In practice, `P` sets are about 20-30 times bigger than `R` sets (on average).
+To skip `Pv` elements more aggressively, the inner loop can step over another
+element, that is, test only every second element.
+
+```c
+	if (*Pv < Rval) {
+	    le = 0;
+	    do
+		Pv += 2;
+	    while (*Pv < Rval);
+	    Pv = (Pv[-1] >= Rval) ? Pv - 1 : Pv;
+	    if (Pv == Pend) break;
+	}
+```
+For the loop to work, two `UINT32_MAX` sentinels must be installed at the end
+of `Pv` array.  When the loop completes, we may need to step one element back.
+Here is the unrolled version:
+
+```c
+	if (*Pv < Rval) {
+	    le = 0;
+	    while (1) {
+		if (Pv[2] >= Rval) { Pv += 2; break; }
+		if (Pv[4] >= Rval) { Pv += 4; break; }
+		if (Pv[6] >= Rval) { Pv += 6; break; }
+		Pv += 6;
+	    }
+	    Pv = (Pv[-1] >= Rval) ? Pv - 1 : Pv;
+	    if (Pv == Pend) break;
+	}
+```
+The performance of this approach depends critically on the ability of the compiler
+to handle stepping back with a `cmov` instruction.  Unfortunately, this is not
+the case with the above code, so we try to cajole the compiler into emitting `cmov`
+by morphing the "step back" into a "step forth":
+
+```c
+	if (*Pv < Rval) {
+	    le = 0;
+	    while (1) {
+		if (Pv[2] >= Rval) { Pv += 1; break; }
+		if (Pv[4] >= Rval) { Pv += 3; break; }
+		if (Pv[6] >= Rval) { Pv += 5; break; }
+		Pv += 6;
+	    }
+	    Pv = (*Pv < Rval) ? Pv + 1 : Pv;
+	    if (Pv == Pend) break;
+	}
+```
