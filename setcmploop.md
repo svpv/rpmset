@@ -115,3 +115,26 @@ cleared, a few more `Pv` elements are skipped quickly, until we encounter
 `*Pv >= Rval`, or until `Pv` is at `Pend`.  Both of these conditions can be
 tested with a single comparison, `*Pv < Rval`, if we install a sentinel at the
 end of `Pv` array: `Pv[Pn] = UINT32_MAX`.
+
+## Unrolling the loop
+
+The inner loop can further be unrolled, as explained in *Knuth, Vol.3, p.398*.
+In our experience, unrolling by a factor of 3 or 4 works best.
+
+```c
+
+	if (*Pv < Rval) {
+	    le = 0;
+	    while (1) {
+		if (Pv[1] >= Rval) { Pv += 1; break; }
+		if (Pv[2] >= Rval) { Pv += 2; break; }
+		if (Pv[3] >= Rval) { Pv += 3; break; }
+		Pv += 3;
+	    }
+	    if (Pv == Pend) break;
+	}
+```
+One reason why unrolling helps is that the load of `Pv[2]` can be issued
+speculatively, in parallel with the test for `Pv[1] >= Rval`.  This isn't
+possible without unrolling, because the load from the next `*Pv` has to wait for
+the increment to complete.
