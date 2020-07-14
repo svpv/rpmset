@@ -7,7 +7,9 @@
 #include <arm_neon.h>
 
 #define Vto8(x) vreinterpretq_u8_u32(x)
+#define Vto16(x) vreinterpretq_u16_u32(x)
 #define Vfrom8(x) vreinterpretq_u32_u8(x)
+#define Vfrom16(x) vreinterpretq_u32_u16(x)
 
 #define V32x4 uint32x4_t
 #define VLOAD(p) Vfrom8(vld1q_u8((const void *)(p)))
@@ -30,6 +32,8 @@
 #define VEXTR16(x, k) vreinterpretq_u16_u32(x)[k]
 #define VEXTR32(x, k) x[k]
 
+#define VSHLV16(x, k0, k1, k2, k3, k4, k5, k6, k7) \
+	Vfrom16(vshlq_u16(Vto16(x), (int16x8_t){ k0, k1, k2, k3, k4, k5, k6, k7 }))
 #define VSHLV32(x, k0, k1, k2, k3) \
 	vshlq_u32(x, (int32x4_t){ k0, k1, k2, k3 })
 #define VSHRV32(x, k0, k1, k2, k3) \
@@ -40,6 +44,8 @@
 #define VSHLV32_COST 1
 
 #define VSHR8(x, k) Vfrom8(vshrq_n_u8(Vto8(x), k))
+#define VSHL16(x, k) Vfrom16(vshlq_n_u16(Vto16(x), k))
+#define VSHR16(x, k) Vfrom16(vshrq_n_u16(Vto16(x), k))
 #define VSHL32(x, k) vshlq_n_u32(x, k)
 #define VSHR32(x, k) vshrq_n_u32(x, k)
 
@@ -84,6 +90,16 @@ static inline V32x4 glue24(V32x4 x)
 #define VEXTR16(x, k) (uint32_t)_mm_extract_epi16(x, k)
 #define VEXTR32(x, k) (uint32_t)_mm_extract_epi32(x, k)
 
+#if defined(__AVX512BW__) && defined(__AVX512VL__)
+#include <immintrin.h>
+#define VSHLV16(x, k0, k1, k2, k3, k4, k5, k6, k7) \
+	_mm_sllv_epi16(x, _mm_setr_epi16(k0, k1, k2, k3, k4, k5, k6, k7))
+#else
+#define VSHLV16(x, k0, k1, k2, k3, k4, k5, k6, k7) \
+	_mm_mullo_epi16(x, _mm_setr_epi16(1U<<k0, 1U<<k1, 1U<<k2, 1U<<k3, \
+					  1U<<k4, 1U<<k5, 1U<<k6, 1U<<k7))
+#endif
+
 #if defined(__znver1__)
 #define VSHLV32(x, k0, k1, k2, k3) \
 	_mm_mullo_epi32(x, _mm_setr_epi32(1U<<k0, 1U<<k1, 1U<<k2, 1U<<k3))
@@ -99,6 +115,8 @@ static inline V32x4 glue24(V32x4 x)
 #define VSHLV32_COST 3
 #endif
 
+#define VSHL16(x, k) _mm_slli_epi16(x, k)
+#define VSHR16(x, k) _mm_srli_epi16(x, k)
 #define VSHL32(x, k) _mm_slli_epi32(x, k)
 #define VSHR32(x, k) _mm_srli_epi32(x, k)
 #define VSHR64(x, k) _mm_srli_epi64(x, k)
@@ -371,23 +389,18 @@ static inline bool unpack10x8c14e4(const char *s, uint32_t *v, unsigned *e)
 
 static inline bool unpack10x9c15(const char *s, uint32_t *v, unsigned *e)
 {
-    V32x4 x, y;
+    V32x4 x;
     if (!unpack6(s - 1, &x)) return false;
     x = glue12(x);
-    v[8] = VEXTR16(x, 7) >> 2; // or better v[4]?
+    v[8] = VEXTR16(x, 7) >> 2;
     x = glue24(x);
-    y = VSHUF8(x, V8x16_C(
-	    -1, -1, 0, 1, -1, -1, 2, 4,
-	    -1, -1, 4, 5, -1, -1, 5, 6));
-    y = VSHLV32(y, 0, 6, 4, 2);
-    y = VSHR32(y, 22);
-    VSTORE(v, y);
-    y = VSHUF8(x, V8x16_C(
-	    -1, -1,  6,  8, -1, -1,  9, 10,
-	    -1, -1, 10, 12, -1, -1, 12, 13));
-    y = VSHLV32(y, 0, 6, 4, 2);
-    y = VSHR32(y, 22);
-    VSTORE(v + 4, y);
+    x = VSHUF8(x, V8x16_C(
+	    0, 1,  6,  8, 2, 4,  9, 10,
+	    4, 5, 10, 12, 5, 6, 12, 13));
+    x = VSHLV16(x, 0, 0, 6, 6, 4, 4, 2, 2);
+    x = VSHR16(x, 6);
+    VSTORE(v, VAND(x, VDUP32(0xffff)));
+    VSTORE(v + 4, VSHR32(x, 16));
     return (void) e, true;
 }
 
