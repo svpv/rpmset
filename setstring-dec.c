@@ -78,7 +78,41 @@ static inline size_t dec_xblen(int m, unsigned kn, uint32_t v0, uint32_t vmax)
 	    }					\
     } while (0)
 
-#define Iter(i)					\
+// Q-delta loop iteration, opimized for fewer instructions.
+#define IterB(i)				\
+    do {					\
+	uint32_t z, q;				\
+	if (likely(b != 0)) {			\
+	    z = BitCnt(b);			\
+	    v0 += v[i];				\
+	    q = z++;				\
+	}					\
+	else {					\
+	    q = 0;				\
+	    do {				\
+		q += bfill;			\
+		Refill;				\
+	    } while (unlikely(b == 0));		\
+	    BitRev(b);				\
+	    z = BitCnt(b);			\
+	    v0 += v[i];				\
+	    q += z++;				\
+	}					\
+	BitShift(b, z);				\
+	bfill -= z;				\
+	v0 += (q << m) + ADD1;			\
+	v[i] = v0;				\
+    } while (0)
+
+// On ARM, z = ctz32(b) and b >>= z are cheap instructions (1c latency).
+// On x86, they are typically 3c+2c, so we need a special version optimized
+// for latency: instead of z++, we issue two instructions b >>= 1 and
+// bfill -= 1; the latency is reduced because z = ctz32(b) and b >>= 1
+// can execute in parallel.
+#ifdef __aarch64__
+#define IterA(i) IterB(i)
+#else
+#define IterA(i)				\
     do {					\
 	uint32_t z, q;				\
 	if (likely(b != 0)) {			\
@@ -108,6 +142,7 @@ static inline size_t dec_xblen(int m, unsigned kn, uint32_t v0, uint32_t vmax)
 	}					\
 	v[i] = v0;				\
     } while (0)
+#endif
 
 static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[],
 	bool (*unpack)(const char *s, uint32_t *v, unsigned *e),
@@ -136,12 +171,12 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
 	// Read the q-bits from the bitstream.
 	uint32_t *vend = v + (kn & ~1);
 	do {
-	    Iter(0);
-	    Iter(1);
+	    IterA(0);
+	    IterA(1);
 	    v += 2;
 	} while (v < vend);
 	if (kn & 1) {
-	    Iter(0);
+	    IterB(0);
 	    v++;
 	}
     }
