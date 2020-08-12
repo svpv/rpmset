@@ -37,6 +37,78 @@ static inline size_t dec_xblen(int m, unsigned kn, uint32_t v0, uint32_t vmax)
     return bits1 + bits2;
 }
 
+// On ARM, clz is cheaper than ctz (ctz compiles to rbit+clz).
+#ifdef __aarch64__
+#define BitCnt(x) __builtin_clz(x)
+#define BitRev(x) asm("rbit %w0,%w0" : "+r" (x))
+#define BitShift(x, k) x <<= k
+#else
+#define BitCnt(x) __builtin_ctz(x)
+#define BitRev(x) (void)(x)
+#define BitShift(x, k) x >>= k
+#endif
+
+#define ADD1 1
+
+#define Fill(k)					\
+    do {					\
+	b = base64dec##k(s);			\
+	if (unlikely((int32_t) b < 0))		\
+	    return 0;				\
+	bfill = 6 * k;				\
+	s += k, len -= k;			\
+    } while (0)
+
+#define Refill					\
+    do {					\
+	if (unlikely(len < kq))			\
+	    switch (len) {			\
+	    case 0: return 0;			\
+	    case 1: Fill(1); break;		\
+	    case 2: Fill(2); break;		\
+	    case 3: Fill(3); break;		\
+	    case 4: Fill(4); break;		\
+	    }					\
+	else					\
+	    switch (kq) {			\
+	    case 2: Fill(2); break;		\
+	    case 3: Fill(3); break;		\
+	    case 4: Fill(4); break;		\
+	    case 5: Fill(5); break;		\
+	    }					\
+    } while (0)
+
+#define Iter(i)					\
+    do {					\
+	uint32_t z, q;				\
+	if (likely(b != 0)) {			\
+	    z = BitCnt(b);			\
+	    BitShift(b, 1);			\
+	    BitShift(b, z);			\
+	    v0 += v[i];				\
+	    bfill -= 1;				\
+	    bfill -= z;				\
+	    v0 += (z << m) + ADD1;		\
+	}					\
+	else {					\
+	    q = 0;				\
+	    do {				\
+		q += bfill;			\
+		Refill;				\
+	    } while (unlikely(b == 0));		\
+	    BitRev(b);				\
+	    z = BitCnt(b);			\
+	    BitShift(b, 1);			\
+	    BitShift(b, z);			\
+	    q += z;				\
+	    v0 += v[i];				\
+	    bfill -= 1;				\
+	    bfill -= z;				\
+	    v0 += (q << m) + ADD1;		\
+	}					\
+	v[i] = v0;				\
+    } while (0)
+
 static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[],
 	bool (*unpack)(const char *s, uint32_t *v, unsigned *e),
 	unsigned kn, unsigned ks, unsigned ke, unsigned ko, unsigned kq)
@@ -47,14 +119,6 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
     uint32_t b = 0; // variable-length bitstream
     unsigned bfill = 0;
     s += 2, len -= 2;
-#define FILL(k)					\
-    do {					\
-	b = base64dec##k(s);			\
-	if (unlikely((int32_t) b < 0))		\
-	    return 0;				\
-	bfill = 6 * k;				\
-	s += k, len -= k;			\
-    } while (0)
     // Bulk decoding.
     while (len >= ks + ko && 6 * len > 5 + dec_xblen(m, kn, v0, vmax)) {
 	// Decode a block of m-bit integers.
@@ -63,44 +127,25 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
 	if (unlikely(!ok))
 	    return 0;
 	if (ke) {
+	    BitRev(b);
 	    b |= e << bfill;
 	    bfill += ke;
+	    BitRev(b);
 	}
 	s += ks, len -= ks;
 	// Read the q-bits from the bitstream.
-	uint32_t *vend = v + kn;
+	uint32_t *vend = v + (kn & ~1);
 	do {
-	    uint32_t z, q;
-	    if (likely(b != 0))
-		z = __builtin_ctz(b), q = z;
-	    else {
-		q = 0;
-		do {
-		    q += bfill;
-		    if (unlikely(len < kq))
-			switch (len) {
-			case 0: return 0;
-			case 1: FILL(1); break;
-			case 2: FILL(2); break;
-			case 3: FILL(3); break;
-			case 4: FILL(4); break;
-			}
-		    else
-			switch (kq) {
-			case 2: FILL(2); break;
-			case 3: FILL(3); break;
-			case 4: FILL(4); break;
-			case 5: FILL(5); break;
-			}
-		} while (unlikely(b == 0));
-		z = __builtin_ctz(b), q += z;
-	    }
-	    z++;
-	    b >>= z, bfill -= z;
-	    v0 += *v + (q << m) + 1;
-	    *v++ = v0;
+	    Iter(0);
+	    Iter(1);
+	    v += 2;
 	} while (v < vend);
+	if (kn & 1) {
+	    Iter(0);
+	    v++;
+	}
     }
+    BitRev(b);
     // Read the rest from the bitstream.
     uint32_t rmask = (1U << m) - 1;
     while (len || b) {
@@ -108,9 +153,9 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
 	while (b == 0) {
 	    q += bfill;
 	    if (likely(len > 1))
-		FILL(2);
+		Fill(2);
 	    else if (likely(len == 1))
-		FILL(1);
+		Fill(1);
 	    else
 		return 0;
 	}
@@ -121,9 +166,9 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
 	int rfill = bfill, left;
 	while ((left = rfill - m) < 0) {
 	    if (likely(len > 1))
-		FILL(2);
+		Fill(2);
 	    else if (likely(len == 1))
-		FILL(1);
+		Fill(1);
 	    else
 		return 0;
 	    r |= b << rfill;
