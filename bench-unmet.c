@@ -167,6 +167,6 @@ int main(int argc, char **argv)
 	}
     getpairs();
     double cpi = bench();
-    fprintf(stderr, "%.1f cycles per integer\n", cpi);
+    fprintf(stderr, "%.2f cycles per integer\n", cpi);
     return 0;
 }
