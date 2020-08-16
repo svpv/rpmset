@@ -29,6 +29,7 @@
 		k8, k9, ka, kb, kc, kd, ke, kf }))
 #define VSHUF8(x, t) Vfrom8(vqtbl1q_u8(Vto8(x), Vto8(t)))
 
+#define VEXTR8(x, k) vreinterpretq_u8_u32(x)[k]
 #define VEXTR16(x, k) vreinterpretq_u16_u32(x)[k]
 #define VEXTR32(x, k) x[k]
 
@@ -87,6 +88,7 @@ static inline V32x4 glue24(V32x4 x)
 		k8, k9, ka, kb, kc, kd, ke, kf)
 #define VSHUF8(x, t) _mm_shuffle_epi8(x, t)
 
+#define VEXTR8(x, k) (uint32_t)_mm_extract_epi8(x, k)
 #define VEXTR16(x, k) (uint32_t)_mm_extract_epi16(x, k)
 #define VEXTR32(x, k) (uint32_t)_mm_extract_epi32(x, k)
 
@@ -513,6 +515,28 @@ static inline bool unpack11x8c15e2(const char *s, uint32_t *v, unsigned *e)
 	    -1, -1,  9, 10, -1, -1, 10, 12,
 	    -1, -1, 13, 14, -1, -1, 14,  2));
     y = VSHLV32(y, 3, 0, 5, 2);
+    y = VSHR32(y, 21);
+    VSTORE(v + 4, y);
+    return true;
+}
+
+static inline bool unpack11x8c16e8(const char *s, uint32_t *v, unsigned *e)
+{
+    V32x4 x, y;
+    if (!unpack6(s, &x)) return false;
+    x = glue12(x);
+    *e = VEXTR8(x, 0);
+    x = glue24(x);
+    y = VSHUF8(x, V8x16_C(
+	    -1, -1, 1, 2, -1, -1, 2, 4,
+	    -1,  4, 5, 6, -1,  5, 6, 8));
+    y = VSHLV32(y, 5, 2, 7, 4);
+    y = VSHR32(y, 21);
+    VSTORE(v, y);
+    y = VSHUF8(x, V8x16_C(
+	    -1, -1,  8,  9, -1,  9, 10, 12,
+	    -1, -1, 12, 13, -1, -1, 13, 14));
+    y = VSHLV32(y, 1, 6, 3, 0);
     y = VSHR32(y, 21);
     VSTORE(v + 4, y);
     return true;
