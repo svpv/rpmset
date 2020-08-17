@@ -163,7 +163,7 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
 	    return 0;
 	if (ke) {
 	    BitRev(b);
-	    b |= e << bfill;
+	    b = (b << ke) | e;
 	    bfill += ke;
 	    BitRev(b);
 	}

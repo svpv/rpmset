@@ -155,14 +155,12 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 
 #define FLUSH1							\
     do {							\
-	while (bal >= 0 && bfill >= ke && !Q_empty(&Q)) {	\
-	    uint32_t *odv = Q_pop(&Q, kn);			\
-	    pack(odv, s, b);					\
+	while (bal >= 0 && !Q_empty(&Q)) {			\
+	    uint32_t *odv = Q_pop(&Q, kn + 1);			\
+	    pack(odv, s, odv[kn]);				\
 	    s += ks;						\
-	    if (ke) {						\
-		bal += popcnt32(b & Mask(ke));			\
-		b >>= ke, bfill -= ke;				\
-	    }							\
+	    if (ke)						\
+		bal += popcnt32(odv[kn]);			\
 	    bal -= kn;						\
 	}							\
 	if (len >= kq && bfill >= 6 * kq) {			\
@@ -183,30 +181,40 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 
     while (len - ctl >= ks + ko && 6 * (len - ctl) > 5 + enc_xblen(m, kn, v0, vmax)) {
 	// Make a block of deltas.
-	uint32_t *dv = Q_push(&Q, kn);
+	uint32_t *dv = Q_push(&Q, kn + 1);
 	for (unsigned i = 0; i < kn; i++) {
 	    uint32_t v1 = v[i];
 	    dv[i] = v1 - v0 - 1;
 	    v0 = v1;
 	}
+	dv[kn] = 0;
 	v += kn;
 	len -= ks; // not yet written, but must be accounted for
 	// Write the bitstream and flush the blocks along the way.
+	unsigned efill = 0;
 	for (unsigned i = 0; i < kn; i++) {
-	    bfill += dv[i] >> m;
-	    FLUSH1;
-	    b |= (1U << bfill);
-	    bfill++;
-	    FLUSH1;
+	    if (efill >= ke)
+		bfill += dv[i] >> m;
+	    else {
+		efill += dv[i] >> m;
+		if (efill > ke)
+		    bfill += efill - ke;
+	    }
+	    if (efill >= ke)
+		FLUSH1;
+	    if (efill >= ke)
+		b |= (1U << bfill++);
+	    else
+		dv[kn] |= (1U << efill++);
+	    if (efill >= ke)
+		FLUSH1;
 	}
 	// The condition in the loop control must be the same as in the
 	// decoder.  In the decoder, the condition is checked after all
 	// the necessary q-bits from the previous iteration have been read.
 	// Therefore, we must account for the pending q-bits.
-	ctl = (bfill > ke * Q_nblock(&Q, kn)) ? (len < kq ? len : kq) : 0;
+	ctl = bfill ? (len < kq ? len : kq) : 0;
     }
-
-    assert(bal + popcnt32(b) - Q_nblock(&Q, kn) * kn == 0);
 
     uint32_t rmask = (1U << m) - 1;
     while (v < v_end) {
@@ -238,8 +246,8 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 	    bal = 0;
 	}
 	do {
-	    uint32_t *odv = Q_pop(&Q, kn);
-	    pack(odv, s, b);
+	    uint32_t *odv = Q_pop(&Q, kn + 1);
+	    pack(odv, s, odv[kn]);
 	    s += ks;
 	    b >>= ke, bfill -= ke;
 	    if ((int) bfill < 0) bfill = 0;
