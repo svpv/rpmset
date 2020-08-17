@@ -542,6 +542,32 @@ static inline bool unpack11x8c16e8(const char *s, uint32_t *v, unsigned *e)
     return true;
 }
 
+static inline bool unpack11x9c18e9(const char *s, uint32_t *v, unsigned *e)
+{
+    V32x4 x, y;
+    if (!unpack6(s + 2, &x)) return false;
+    x = glue12(x);
+    uint32_t b = base64dec2(s);
+    if ((int32_t) b < 0) return false;
+    uint32_t c = VEXTR8(x, 0);
+    x = glue24(x);
+    *e = b & Mask(9);
+    v[0] = (b | c << 12) >> 9;
+    y = VSHUF8(x, V8x16_C(
+	    -1, 0, 1, 2, -1, -1, 2, 4,
+	    -1, 4, 5, 6, -1,  5, 6, 8));
+    y = VSHLV32(y, 5, 2, 7, 4);
+    y = VSHR32(y, 21);
+    VSTORE(v + 1, y);
+    y = VSHUF8(x, V8x16_C(
+	    -1, -1,  8,  9, -1,  9, 10, 12,
+	    -1, -1, 12, 13, -1, -1, 13, 14));
+    y = VSHLV32(y, 1, 6, 3, 0);
+    y = VSHR32(y, 21);
+    VSTORE(v + 5, y);
+    return true;
+}
+
 static inline bool unpack12x8c16(const char *s, uint32_t *v, unsigned *e)
 {
     V32x4 x, y;
