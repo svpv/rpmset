@@ -406,24 +406,6 @@ static inline bool unpack10x9c15(const char *s, uint32_t *v, unsigned *e)
     return (void) e, true;
 }
 
-static inline bool unpack10x9c16e6(const char *s, uint32_t *v, unsigned *e)
-{
-    V32x4 x;
-    if (!unpack6(s, &x)) return false;
-    *e = VEXTR8(x, 15);
-    x = glue12(x);
-    v[0] = VEXTR32(x, 0) & Mask(10);
-    x = glue24(x);
-    x = VSHUF8(x, V8x16_C(
-	    1, 2,  8,  9, 2, 4,  9, 10,
-	    4, 5, 10, 12, 6, 8, 13, 14));
-    x = VSHLV16(x, 4, 4, 2, 2, 0, 0, 6, 6);
-    x = VSHR16(x, 6);
-    VSTORE(v + 1, VAND(x, VDUP32(0xffff)));
-    VSTORE(v + 5, VSHR32(x, 16));
-    return (void) e, true;
-}
-
 static inline bool unpack10x18c30(const char *s, uint32_t *v, unsigned *e)
 {
 #if 1

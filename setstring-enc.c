@@ -275,7 +275,7 @@ static size_t encode##m(const uint32_t v[], size_t n, int bpp, char *s) \
     Routine(pack7x12c14,    7, 12, 14, 0, 0, 5) \
     Routine(pack8x12c16,    8, 12, 16, 0, 0, 5) \
     Routine(pack9x10c15,    9, 10, 15, 0, 0, 5) \
-    Routine(pack10x9c16e6, 10,  9, 16, 6, 0, 4) \
+    Routine(pack10x9c15,   10,  9, 15, 0, 0, 5) \
     Routine(pack11x9c18e9, 11,  9, 18, 9, 0, 4) \
     Routine(pack12x8c16,   12,  8, 16, 0, 0, 5) \
     Routine(pack13x6c13,   13,  6, 13, 0, 1, 5) \
