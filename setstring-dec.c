@@ -229,7 +229,7 @@ static size_t decode##m(const char *s, size_t len, int bpp, uint32_t v[]) \
     Routine(unpack7x12c14,      7, 12, 14, 0, 0, 5) \
     Routine(unpack8x12c16,      8, 12, 16, 0, 0, 5) \
     Routine(unpack9x10c15,      9, 10, 15, 0, 0, 5) \
-    Routine(unpack10x10c18e8,  10, 10, 18, 8, 0, 4) \
+    Routine(unpack10x9c15,     10,  9, 15, 0, 0, 5) \
     Routine(unpack11x9c18e9,   11,  9, 18, 9, 0, 4) \
     Routine(unpack12x8c16,     12,  8, 16, 0, 0, 5) \
     Routine(unpack13x6c13o1,   13,  6, 13, 0, 1, 5) \
