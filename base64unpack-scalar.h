@@ -485,36 +485,6 @@ static inline bool unpack11x9c18e9(const char *s, uint32_t *v, unsigned *e)
     return true;
 }
 
-static inline bool unpack11x10c20e10(const char *s, uint32_t *v, unsigned *e)
-{
-    int32_t x, y;
-    x = base64dec5(s + 0);
-    if (x < 0) return false;
-    *e    = (x & Mask(10));
-    v[0]  = (x & Mask(21)) >> 10;
-    v[1]  = (x >> 21);
-    y = base64dec4(s + 5);
-    if (y < 0) return false;
-    v[1] |= (y & Mask(2)) << 9;
-    v[2]  = (y & Mask(13)) >> 2;
-    v[3]  = (y >> 13);
-    x = base64dec5(s + 9);
-    if (x < 0) return false;
-    v[4]  = (x & Mask(11));
-    v[5]  = (x & Mask(22)) >> 11;
-    v[6]  = (x >> 22);
-    y = base64dec5(s + 14);
-    if (y < 0) return false;
-    v[6] |= (y & Mask(3)) << 8;
-    v[7]  = (y & Mask(14)) >> 3;
-    v[8]  = (y & Mask(25)) >> 14;
-    v[9]  = (y >> 25);
-    x = base64dec1(s + 19);
-    if (x < 0) return false;
-    v[9] |= (x << 5);
-    return true;
-}
-
 static inline bool unpack12x8c16(const char *s, uint32_t *v, unsigned *e)
 {
     int32_t x;
