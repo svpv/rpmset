@@ -50,6 +50,9 @@
 #define VSHL32(x, k) vshlq_n_u32(x, k)
 #define VSHR32(x, k) vshrq_n_u32(x, k)
 
+#define VMOVZWLO(x) vmovl_u16(vget_low_u16(Vto16(x)))
+#define VMOVZWHI(x) vmovl_high_u16(Vto16(x))
+
 #define VOR(x, y) vorrq_u32(x, y)
 #define VAND(x, y) vandq_u32(x, y)
 #define VTESTZ(x, y) (vmaxvq_u32(vandq_u32(x, y)) == 0)
@@ -129,6 +132,9 @@ static inline V32x4 glue24(V32x4 x)
 #define VOR(x, y) _mm_or_si128(x, y)
 #define VAND(x, y) _mm_and_si128(x, y)
 #define VTESTZ(x, y) _mm_testz_si128(x, y)
+
+#define VMOVZWLO(x) _mm_cvtepu16_epi32(x)
+#define VMOVZWHI(x) _mm_unpackhi_epi16(x, _mm_setzero_si128())
 
 #define glue12(x) _mm_maddubs_epi16(x, _mm_set1_epi32(0x40014001))
 #define glue24(x) _mm_madd_epi16(x, _mm_set1_epi32(0x10000001))
@@ -592,13 +598,11 @@ static inline bool unpack11x9c18e9(const char *s, uint32_t *v, unsigned *e)
 
 static inline bool unpack12x8c16(const char *s, uint32_t *v, unsigned *e)
 {
-    V32x4 x, y;
+    V32x4 x;
     if (!unpack6(s, &x)) return false;
     x = glue12(x);
-    y = VAND(x, VDUP32(0xffff));
-    VSTORE(v, y);
-    y = VSHR32(x, 16);
-    VSTORE(v + 4, y);
+    VSTORE(v + 0, VMOVZWLO(x));
+    VSTORE(v + 4, VMOVZWHI(x));
     return (void) e, true;
 }
 
