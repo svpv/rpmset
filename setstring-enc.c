@@ -151,7 +151,8 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
     unsigned bfill = 0;
     struct Q Q; Q_init(&Q);
     int bal = 0; // balance between SIMD blocks and the q-bitstream
-    unsigned ctl = 0; // loop control correction, see below
+    size_t dlen = len; // len and bfill from the decoder's perspective
+    unsigned dbfill = bfill;
 
 #define FLUSH1							\
     do {							\
@@ -179,7 +180,7 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 	break;							\
     } while (1)
 
-    while (len - ctl >= kc + ko && 6 * (len - ctl) > 5 + enc_xblen(m, kn, v0, vmax)) {
+    while (dlen >= kc + ko && 6 * dlen + dbfill > 5 + enc_xblen(m, kn, v0, vmax)) {
 	// Make a block of deltas.
 	uint32_t *dv = Q_push(&Q, kn + 1);
 	for (unsigned i = 0; i < kn; i++) {
@@ -213,7 +214,13 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 	// decoder.  In the decoder, the condition is checked after all
 	// the necessary q-bits from the previous iteration have been read.
 	// Therefore, we must account for the pending q-bits.
-	ctl = bfill ? (len < kq ? len : kq) : 0;
+	if (bfill == 0)
+	    dlen = len, dbfill = bfill;
+	else {
+	     unsigned dload = len < kq ? len : kq;
+	     dlen = len - dload;
+	     dbfill = dload * 6 - bfill;
+	}
     }
 
     uint32_t rmask = (1U << m) - 1;

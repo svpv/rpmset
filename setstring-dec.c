@@ -156,7 +156,7 @@ static inline size_t dec1(const char *s, size_t len6, int bpp, int m, uint32_t v
     len6 *= 6;
     s += 2, len6 -= 2 * 6;
     // Bulk decoding.
-    while (len6 >= 6 * (kc + ko) && len6 > 5 + dec_xblen(m, kn, v0, vmax)) {
+    while (len6 >= 6 * (kc + ko) && len6 + bfill > 5 + dec_xblen(m, kn, v0, vmax)) {
 	// Decode a block of m-bit integers.
 	unsigned e;
 	bool ok = unpack(s, v, &e);
