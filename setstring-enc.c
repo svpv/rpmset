@@ -136,7 +136,7 @@ static inline uint32_t *Q_pop(struct Q *Q, unsigned n)
 
 static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 	void (*pack)(const uint32_t *v, char *s, unsigned e),
-	unsigned kn, unsigned ks, unsigned ke, unsigned ko, unsigned kq)
+	unsigned kn, unsigned kc, unsigned ke, unsigned ko, unsigned kq)
 {
     size_t len = enc_dryrun(v, n, m);
     if (len == 0)
@@ -158,7 +158,7 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 	while (bal >= 0 && !Q_empty(&Q)) {			\
 	    uint32_t *odv = Q_pop(&Q, kn + 1);			\
 	    pack(odv, s, odv[kn]);				\
-	    s += ks;						\
+	    s += kc;						\
 	    if (ke)						\
 		bal += popcnt32(odv[kn]);			\
 	    bal -= kn;						\
@@ -179,7 +179,7 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 	break;							\
     } while (1)
 
-    while (len - ctl >= ks + ko && 6 * (len - ctl) > 5 + enc_xblen(m, kn, v0, vmax)) {
+    while (len - ctl >= kc + ko && 6 * (len - ctl) > 5 + enc_xblen(m, kn, v0, vmax)) {
 	// Make a block of deltas.
 	uint32_t *dv = Q_push(&Q, kn + 1);
 	for (unsigned i = 0; i < kn; i++) {
@@ -189,7 +189,7 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 	}
 	dv[kn] = 0;
 	v += kn;
-	len -= ks; // not yet written, but must be accounted for
+	len -= kc; // not yet written, but must be accounted for
 	// Write the bitstream and flush the blocks along the way.
 	unsigned efill = 0;
 	for (unsigned i = 0; i < kn; i++) {
@@ -248,7 +248,7 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 	do {
 	    uint32_t *odv = Q_pop(&Q, kn + 1);
 	    pack(odv, s, odv[kn]);
-	    s += ks;
+	    s += kc;
 	    b >>= ke, bfill -= ke;
 	    if ((int) bfill < 0) bfill = 0;
 	} while (!Q_empty(&Q));
@@ -265,9 +265,9 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 
 #include "base64pack.h"
 
-#define Routine(pack, m, kn, ks, ke, ko, kq) \
+#define Routine(pack, m, kn, kc, ke, ko, kq) \
 static size_t encode##m(const uint32_t v[], size_t n, int bpp, char *s) \
-{ return enc1(v, n, bpp, m, s, pack, kn, ks, ke, ko, kq); }
+{ return enc1(v, n, bpp, m, s, pack, kn, kc, ke, ko, kq); }
 
 #define Routines \
     Routine(pack5x19c16e1,  5, 19, 16, 1, 0, 5) \
@@ -300,7 +300,7 @@ static size_t encode##m(const uint32_t v[], size_t n, int bpp, char *s) \
 Routines
 
 #undef Routine
-#define Routine(pack, m, kn, ks, ke, ko, kq) encode##m,
+#define Routine(pack, m, kn, kc, ke, ko, kq) encode##m,
 
 typedef size_t (*encfunc_t)(const uint32_t v[], size_t n, int bpp, char *s);
 static const encfunc_t enctab[26] = { Routines };

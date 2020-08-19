@@ -146,7 +146,7 @@ static inline size_t dec_xblen(int m, unsigned kn, uint32_t v0, uint32_t vmax)
 
 static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[],
 	bool (*unpack)(const char *s, uint32_t *v, unsigned *e),
-	unsigned kn, unsigned ks, unsigned ke, unsigned ko, unsigned kq)
+	unsigned kn, unsigned kc, unsigned ke, unsigned ko, unsigned kq)
 {
     uint32_t v0 = (uint32_t) -1;
     uint32_t vmax = (bpp == 32) ? UINT32_MAX : (1U << bpp) - 1;
@@ -155,7 +155,7 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
     unsigned bfill = 0;
     s += 2, len -= 2;
     // Bulk decoding.
-    while (len >= ks + ko && 6 * len > 5 + dec_xblen(m, kn, v0, vmax)) {
+    while (len >= kc + ko && 6 * len > 5 + dec_xblen(m, kn, v0, vmax)) {
 	// Decode a block of m-bit integers.
 	unsigned e;
 	bool ok = unpack(s, v, &e);
@@ -167,7 +167,7 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
 	    bfill += ke;
 	    BitRev(b);
 	}
-	s += ks, len -= ks;
+	s += kc, len -= kc;
 	// Read the q-bits from the bitstream.
 	uint32_t *vend = v + (kn & ~1);
 	do {
@@ -219,9 +219,9 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
     return v - v_start;
 }
 
-#define Routine(unpack, m, kn, ks, ke, ko, kq) \
+#define Routine(unpack, m, kn, kc, ke, ko, kq) \
 static size_t decode##m(const char *s, size_t len, int bpp, uint32_t v[]) \
-{ return dec1(s, len, bpp, m, v, unpack, kn, ks, ke, ko, kq); }
+{ return dec1(s, len, bpp, m, v, unpack, kn, kc, ke, ko, kq); }
 
 #define Routines \
     Routine(unpack5x19c16e1,    5, 19, 16, 1, 0, 5) \
@@ -254,5 +254,5 @@ static size_t decode##m(const char *s, size_t len, int bpp, uint32_t v[]) \
 Routines
 
 #undef Routine
-#define Routine(unpack, m, kn, ks, ke, ko, kq) decode##m,
+#define Routine(unpack, m, kn, kc, ke, ko, kq) decode##m,
 const setstring_decfunc_t setstring_dectab[26] = { Routines };
