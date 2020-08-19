@@ -56,18 +56,18 @@ static inline size_t dec_xblen(int m, unsigned kn, uint32_t v0, uint32_t vmax)
 	if (unlikely((int32_t) b < 0))		\
 	    return 0;				\
 	bfill = 6 * k;				\
-	s += k, len -= k;			\
+	s += k, len6 -= 6 * k;			\
     } while (0)
 
 #define Refill					\
     do {					\
-	if (unlikely(len < kq))			\
-	    switch (len) {			\
-	    case 0: return 0;			\
-	    case 1: Fill(1); break;		\
-	    case 2: Fill(2); break;		\
-	    case 3: Fill(3); break;		\
-	    case 4: Fill(4); break;		\
+	if (unlikely(len6 < 6 * kq))		\
+	    switch (len6) {			\
+	    case 6 * 0: return 0;		\
+	    case 6 * 1: Fill(1); break;		\
+	    case 6 * 2: Fill(2); break;		\
+	    case 6 * 3: Fill(3); break;		\
+	    case 6 * 4: Fill(4); break;		\
 	    }					\
 	else					\
 	    switch (kq) {			\
@@ -144,7 +144,7 @@ static inline size_t dec_xblen(int m, unsigned kn, uint32_t v0, uint32_t vmax)
     } while (0)
 #endif
 
-static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[],
+static inline size_t dec1(const char *s, size_t len6, int bpp, int m, uint32_t v[],
 	bool (*unpack)(const char *s, uint32_t *v, unsigned *e),
 	unsigned kn, unsigned kc, unsigned ke, unsigned ko, unsigned kq)
 {
@@ -153,9 +153,10 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
     uint32_t *v_start = v;
     uint32_t b = 0; // variable-length bitstream
     unsigned bfill = 0;
-    s += 2, len -= 2;
+    len6 *= 6;
+    s += 2, len6 -= 2 * 6;
     // Bulk decoding.
-    while (len >= kc + ko && 6 * len > 5 + dec_xblen(m, kn, v0, vmax)) {
+    while (len6 >= 6 * (kc + ko) && len6 > 5 + dec_xblen(m, kn, v0, vmax)) {
 	// Decode a block of m-bit integers.
 	unsigned e;
 	bool ok = unpack(s, v, &e);
@@ -167,7 +168,7 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
 	    bfill += ke;
 	    BitRev(b);
 	}
-	s += kc, len -= kc;
+	s += kc, len6 -= 6 * kc;
 	// Read the q-bits from the bitstream.
 	uint32_t *vend = v + (kn & ~1);
 	do {
@@ -183,13 +184,13 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
     BitRev(b);
     // Read the rest from the bitstream.
     uint32_t rmask = (1U << m) - 1;
-    while (len || b) {
+    while (len6 || b) {
 	uint32_t q = 0;
 	while (b == 0) {
 	    q += bfill;
-	    if (likely(len > 1))
+	    if (likely(len6 > 6))
 		Fill(2);
-	    else if (likely(len == 1))
+	    else if (likely(len6 == 6))
 		Fill(1);
 	    else
 		return 0;
@@ -200,9 +201,9 @@ static inline size_t dec1(const char *s, size_t len, int bpp, int m, uint32_t v[
 	uint32_t r = b;
 	int rfill = bfill, left;
 	while ((left = rfill - m) < 0) {
-	    if (likely(len > 1))
+	    if (likely(len6 > 6))
 		Fill(2);
-	    else if (likely(len == 1))
+	    else if (likely(len6 == 6))
 		Fill(1);
 	    else
 		return 0;
