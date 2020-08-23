@@ -2,6 +2,8 @@
 #include "setstring.h"
 #include "base64.h"
 
+#define inline inline __attribute__((always_inline))
+
 #define unlikely(x) __builtin_expect(x, 0)
 #define likely(x) __builtin_expect(!!(x), 1)
 
@@ -43,7 +45,7 @@ static inline size_t dec_xblen(int m, unsigned kn, uint32_t v0, uint32_t vmax)
 #define BitRev(x) asm("rbit %w0,%w0" : "+r" (x))
 #define BitShift(x, k) x <<= k
 #else
-#define BitCnt(x) __builtin_ctz(x)
+#define BitCnt(x) __builtin_ctzll(x)
 #define BitRev(x) (void)(x)
 #define BitShift(x, k) x >>= k
 #endif
@@ -53,7 +55,7 @@ static inline size_t dec_xblen(int m, unsigned kn, uint32_t v0, uint32_t vmax)
 #define Fill(k, len6)				\
     do {					\
 	b = base64dec##k(s);			\
-	if (unlikely((int32_t) b < 0))		\
+	if (unlikely((int64_t) b < 0))		\
 	    return 0;				\
 	bfill = 6 * k;				\
 	s += k, len6 -= 6 * k;			\
@@ -67,6 +69,12 @@ static inline size_t dec_xblen(int m, unsigned kn, uint32_t v0, uint32_t vmax)
 	    if (len6c == LEN6C(2)) { Fill(2, len6c); break; } \
 	    if (len6c == LEN6C(3)) { Fill(3, len6c); break; } \
 	    if (len6c == LEN6C(4)) { Fill(4, len6c); break; } \
+	    if (len6c == LEN6C(5)) { Fill(5, len6c); break; } \
+	    if (len6c == LEN6C(6)) { Fill(6, len6c); break; } \
+	    if (len6c == LEN6C(7)) { Fill(7, len6c); break; } \
+	    if (len6c == LEN6C(8)) { Fill(8, len6c); break; } \
+	    if (len6c == LEN6C(9)) { Fill(9, len6c); break; } \
+	    if (len6c == LEN6C(10)){ Fill(10,len6c); break; } \
 	}					\
 	else					\
 	    switch (kq) {			\
@@ -74,6 +82,11 @@ static inline size_t dec_xblen(int m, unsigned kn, uint32_t v0, uint32_t vmax)
 	    case 3: Fill(3, len6c); break;	\
 	    case 4: Fill(4, len6c); break;	\
 	    case 5: Fill(5, len6c); break;	\
+	    case 6: Fill(6, len6c); break;	\
+	    case 7: Fill(7, len6c); break;	\
+	    case 8: Fill(8, len6c); break;	\
+	    case 9: Fill(9, len6c); break;	\
+	    case 10:Fill(10,len6c); break;	\
 	    }					\
     } while (0)
 
@@ -150,7 +163,7 @@ static inline size_t dec1(const char *s, size_t len6, int bpp, int m, uint32_t v
     uint32_t v0 = (uint32_t) -1;
     uint32_t vmax = (bpp == 32) ? UINT32_MAX : (1U << bpp) - 1;
     uint32_t *v_start = v;
-    uint32_t b = 0; // variable-length bitstream
+    uint64_t b = 0; // variable-length bitstream
     unsigned bfill = 0;
     len6 *= 6;
     s += 2, len6 -= 2 * 6;
@@ -199,10 +212,10 @@ static inline size_t dec1(const char *s, size_t len6, int bpp, int m, uint32_t v
 	    else
 		return 0;
 	}
-	uint32_t z = __builtin_ctz(b);
+	uint32_t z = __builtin_ctzll(b);
 	q += z++;
 	b >>= z, bfill -= z;
-	uint32_t r = b;
+	uint64_t r = b;
 	int rfill = bfill, left;
 	while ((left = rfill - m) < 0) {
 	    if (likely(len6 > 6))
@@ -236,7 +249,7 @@ static size_t decode##m(const char *s, size_t len, int bpp, uint32_t v[]) \
     Routine(unpack9x10c15,      9, 10, 15, 0, 0, 5) \
     Routine(unpack10x9c15,     10,  9, 15, 0, 0, 5) \
     Routine(unpack11x9c18e9,   11,  9, 18, 9, 0, 4) \
-    Routine(unpack12x8c16,     12,  8, 16, 0, 0, 5) \
+    Routine(unpack12x8c16,     12,  8, 16, 0, 0,10) \
     Routine(unpack13x6c13o1,   13,  6, 13, 0, 1, 5) \
     Routine(unpack14x6c14,     14,  6, 14, 0, 0, 5) \
     Routine(unpack15x6c15,     15,  6, 15, 0, 0, 5) \

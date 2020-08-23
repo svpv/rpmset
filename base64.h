@@ -61,7 +61,42 @@ static inline uint32_t base64dec4c(unsigned char c0, unsigned char c1, unsigned 
 
 static inline uint32_t base64dec5c(unsigned char c0, unsigned char c1, unsigned char c2, unsigned char c3, unsigned char c4)
 {
-    return base64d0[c0] | base64d1[c1] | base64d2[c2] | base64d3[c3] | base64d4[c4];
+    return base64d0[c0] | base64d1[c1] | (base64d0[c2] | base64d1[c3] | base64d2[c4]) << 12;
+}
+
+static inline uint64_t base64dec6c(unsigned char c0, unsigned char c1, unsigned char c2, unsigned char c3, unsigned char c4, unsigned char c5)
+{
+    return  (int64_t) base64d0[c0] | (int64_t) base64d1[c1] | (int64_t) base64d2[c2] |
+	   ((int64_t) base64d0[c3] | (int64_t) base64d1[c4] | (int64_t) base64d2[c5]) << 18;
+}
+
+static inline uint64_t base64dec7c(unsigned char c0, unsigned char c1, unsigned char c2, unsigned char c3, unsigned char c4, unsigned char c5, unsigned char c6)
+{
+    return  (int64_t) base64d0[c0] | (int64_t) base64d1[c1] |
+	   ((int64_t) base64d0[c2] | (int64_t) base64d1[c3]) << 12 |
+	   ((int64_t) base64d0[c4] | (int64_t) base64d1[c5] | (int64_t) base64d2[c6]) << 24;
+}
+
+static inline uint64_t base64dec8c(unsigned char c0, unsigned char c1, unsigned char c2, unsigned char c3, unsigned char c4, unsigned char c5, unsigned char c6, unsigned char c7)
+{
+    return  (int64_t) base64d0[c0] | (int64_t) base64d1[c1] |
+	   ((int64_t) base64d0[c2] | (int64_t) base64d1[c3] | (int64_t) base64d2[c4]) << 12 |
+	   ((int64_t) base64d0[c5] | (int64_t) base64d1[c6] | (int64_t) base64d2[c7]) << 30;
+}
+
+static inline uint64_t base64dec9c(unsigned char c0, unsigned char c1, unsigned char c2, unsigned char c3, unsigned char c4, unsigned char c5, unsigned char c6, unsigned char c7, unsigned char c8)
+{
+    return  (int64_t) base64d0[c0] | (int64_t) base64d1[c1] | (int64_t) base64d2[c2] |
+	   ((int64_t) base64d0[c3] | (int64_t) base64d1[c4] | (int64_t) base64d2[c5]) << 18 |
+	   ((int64_t) base64d0[c6] | (int64_t) base64d1[c7] | (int64_t) base64d2[c8]) << 36;
+}
+
+static inline uint64_t base64dec10c(unsigned char c0, unsigned char c1, unsigned char c2, unsigned char c3, unsigned char c4, unsigned char c5, unsigned char c6, unsigned char c7, unsigned char c8, unsigned char c9)
+{
+    return  (int64_t) base64d0[c0] | (int64_t) base64d1[c1] |
+	   ((int64_t) base64d0[c2] | (int64_t) base64d1[c3]) << 12 |
+	   ((int64_t) base64d0[c4] | (int64_t) base64d1[c5] | (int64_t) base64d2[c6]) << 24 |
+	   ((int64_t) base64d0[c7] | (int64_t) base64d1[c8] | (int64_t) base64d2[c9]) << 42;
 }
 
 static inline uint32_t base64dec2(const char *s)
@@ -82,6 +117,31 @@ static inline uint32_t base64dec4(const char *s)
 static inline uint32_t base64dec5(const char *s)
 {
     return base64dec5c(s[0], s[1], s[2], s[3], s[4]);
+}
+
+static inline uint64_t base64dec6(const char *s)
+{
+    return base64dec6c(s[0], s[1], s[2], s[3], s[4], s[5]);
+}
+
+static inline uint64_t base64dec7(const char *s)
+{
+    return base64dec7c(s[0], s[1], s[2], s[3], s[4], s[5], s[6]);
+}
+
+static inline uint64_t base64dec8(const char *s)
+{
+    return base64dec8c(s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7]);
+}
+
+static inline uint64_t base64dec9(const char *s)
+{
+    return base64dec9c(s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7], s[8]);
+}
+
+static inline uint64_t base64dec10(const char *s)
+{
+    return base64dec10c(s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7], s[8], s[9]);
 }
 
 static inline uint64_t base64wdec2(const char *s)
