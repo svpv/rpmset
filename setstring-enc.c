@@ -1,7 +1,9 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
 #include "setstring.h"
 #include "base64.h"
+#include "base64pack.h"
 
 static inline int log2i(uint32_t x)
 {
@@ -133,6 +135,7 @@ static inline uint32_t *Q_pop(struct Q *Q, unsigned n)
 }
 
 #define popcnt32 __builtin_popcount
+#define popcnt64 __builtin_popcountll
 
 static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 	void (*pack)(const uint32_t *v, char *s, unsigned e),
@@ -166,13 +169,18 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 	}							\
 	if (len >= kq && bfill >= 6 * kq) {			\
 	    switch (kq) {					\
+	    case 10:s[9] = base64[(b>>54)&63]; /* FALLTHRU */	\
+	    case 9: s[8] = base64[(b>>48)&63]; /* FALLTHRU */	\
+	    case 8: s[7] = base64[(b>>42)&63]; /* FALLTHRU */	\
+	    case 7: s[6] = base64[(b>>36)&63]; /* FALLTHRU */	\
+	    case 6: s[5] = base64[(b>>30)&63]; /* FALLTHRU */	\
 	    case 5: s[4] = base64[(b>>24)&63]; /* FALLTHRU */	\
 	    case 4: s[3] = base64[(b>>18)&63]; /* FALLTHRU */	\
 	    case 3: s[2] = base64[(b>>12)&63]; /* FALLTHRU */	\
 	    default:s[1] = base64[(b>>06)&63];			\
 		    s[0] = base64[(b>>00)&63];			\
 	    }							\
-	    bal += popcnt32(b & Mask(6 * kq));			\
+	    bal += popcnt64(b & Wask(6 * kq));			\
 	    b >>= 6 * kq, bfill -= 6 * kq;			\
 	    s += kq, len -= kq;					\
 	    continue;						\
@@ -204,7 +212,7 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 	    if (efill >= ke)
 		FLUSH1;
 	    if (efill >= ke)
-		b |= (1U << bfill++);
+		b |= (1ULL << bfill++);
 	    else
 		dv[kn] |= (1U << efill++);
 	    if (efill >= ke)
@@ -230,11 +238,19 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 	v0 = v1;
 	bfill += dv >> m;
 	FLUSH1;
-	b |= (1U << bfill);
+	b |= (1ULL << bfill);
 	bfill++;
 	dv &= rmask;
 	b |= (uint64_t) dv << bfill;
 	bfill += m;
+	if (bfill > 64) {
+	    int left = bfill - 64;
+	    bfill = 64;
+	    FLUSH1;
+	    dv >>= m - left;
+	    b |= (uint64_t) dv << bfill;
+	    bfill += left;
+	}
 	FLUSH1;
     }
 
@@ -242,6 +258,11 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 	if (bal < 0) {
 	    assert(bfill > 6 * (kq - 1));
 	    switch (kq) {
+	    case 10:s[9] = base64[(b>>54)&63]; // FALLTHRU
+	    case 9: s[8] = base64[(b>>48)&63]; // FALLTHRU
+	    case 8: s[7] = base64[(b>>42)&63]; // FALLTHRU
+	    case 7: s[6] = base64[(b>>36)&63]; // FALLTHRU
+	    case 6: s[5] = base64[(b>>30)&63]; // FALLTHRU
 	    case 5: s[4] = base64[(b>>24)&63]; // FALLTHRU
 	    case 4: s[3] = base64[(b>>18)&63]; // FALLTHRU
 	    case 3: s[2] = base64[(b>>12)&63]; // FALLTHRU
@@ -265,12 +286,15 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
     if (bfill > 12) *s++ = base64[(b>>12)&63], len--;
     if (bfill > 18) *s++ = base64[(b>>18)&63], len--;
     if (bfill > 24) *s++ = base64[(b>>24)&63], len--;
+    if (bfill > 30) *s++ = base64[(b>>30)&63], len--;
+    if (bfill > 36) *s++ = base64[(b>>36)&63], len--;
+    if (bfill > 42) *s++ = base64[(b>>42)&63], len--;
+    if (bfill > 48) *s++ = base64[(b>>48)&63], len--;
+    if (bfill > 54) *s++ = base64[(b>>54)&63], len--;
     assert(len == 0);
     *s = '\0';
     return s - s_start;
 }
-
-#include "base64pack.h"
 
 #define Routine(pack, m, kn, kc, ke, ko, kq) \
 static size_t encode##m(const uint32_t v[], size_t n, int bpp, char *s) \
@@ -284,7 +308,7 @@ static size_t encode##m(const uint32_t v[], size_t n, int bpp, char *s) \
     Routine(pack9x10c15,    9, 10, 15, 0, 0, 5) \
     Routine(pack10x9c15,   10,  9, 15, 0, 0, 5) \
     Routine(pack11x9c18e9, 11,  9, 18, 9, 0, 4) \
-    Routine(pack12x8c16,   12,  8, 16, 0, 0, 5) \
+    Routine(pack12x8c16,   12,  8, 16, 0, 0,10) \
     Routine(pack13x6c13,   13,  6, 13, 0, 1, 5) \
     Routine(pack14x6c14,   14,  6, 14, 0, 0, 5) \
     Routine(pack15x6c15,   15,  6, 15, 0, 0, 5) \
