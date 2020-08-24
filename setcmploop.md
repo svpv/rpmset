@@ -190,3 +190,21 @@ by morphing the "step back" into a "step forth":
 	    if (Pv == Pend) break;
 	}
 ```
+
+## Benchmarks
+
+For benchmarking we use a real-world data set obtained from `apt-cache unmet`.
+There are 83899 `setcmploop` calls, with 1519±2539 elements on average in the
+`P` set and 51±173 elements in the `R` set.  We report the mean time per call,
+according to `rdtsc`.  The compiler is gcc 9.3 for `x86_64`, the CPU is Haswell.
+
+| setcmploop variant                          | cycles per call |
+| ------------------------------------------- | --------------- |
+| naive0                                      | 4100            |
+| naive1                                      | 3800            |
+| step=1                                      | 3030            |
+| step=1 unrolled                             | 2660            |
+| step=2                                      | 2900            |
+| step=2 unrolled                             | 2510            |
+| [setcmploop.c](setcmploop.c)                | 2440            |
+| [setcmploop-x86\_64.S](setcmploop-x86_64.S) | 2310            |
