@@ -23,5 +23,35 @@ v<sub>max</sub>`=`2<sup>bpp</sup>`- 1`.  Therefore, the maximum bitlength is
 known in advance, we get a slightly tighter bound: `C + (v[n-1] + 1 - n) >> m`.
 
 (We have v<sub>0</sub>`= -1`, not v<sub>0</sub>`= 0`, because each delta
-gets implicitly incremented with `+1`; if `dv[0] is `0`, the first iteration
+gets implicitly incremented with `+1`; if `dv[0]` is `0`, the first iteration
 `v[i] = (v0 += dv[i] + 1)` gets us `v[0] = 0`, as expected.)
+
+## The loop control of a block decoder
+
+Suppose we have the `unpack` primitive which consumes `kc` characters and
+produces a block of `kn` `m`-bit numbers.  We want the decoder to process
+the input in blocks: to unpack `kn` `m`-bit deltas and complement them with
+q-bits from the bitstream.  (The bitstream in consumed from the input in
+smaller chunks, which are interleaved with the blocks.)  Near the end of the
+input, the decoder should switch to a slower code path and consume `m`-bit
+quantities from the bitstream, one by one.
+
+Let len<sub>1</sub> be the number of remaining characters in the input.
+The problem is that the condition len<sub>1</sub>` >= kc` is not sufficient
+to conclude whether we should process another block: after unpacking the block,
+we may find out that we've run out of q-bits.  We may try to redistribute the
+`m` bits from the last decoded delta to the bitstream, but there is no hard
+limit on how many deltas we may need to redistribute.  In the worst case,
+we may need to reassign bits from more than one block.
+
+Our soultion is based on the above Lemma.  We must not process a block if
+there is a possibility that only `kn - 1` elements are left to decode.
+Let len<sub>0</sub> be the maximimum length of Golomb-Rice code for `kn - 1`
+numbers.  (Note that len<sub>0</sub> depends on the last decoded value
+v<sub>0</sub>, and should be re-evaluated on each iteration.)  Therefore the
+decoder should process the next block iff len<sub>1</sub>` > `len<sub>0</sub>.
+
+The encoder works in lockstep with the decoder.  It first calculates the output
+length (using a simplified procedure which does not assume blocking).  It then
+writes the output, replicating the decisions that will be made in the decoder
+based on the remaining output length.
