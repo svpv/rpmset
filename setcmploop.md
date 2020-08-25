@@ -191,6 +191,16 @@ by morphing the "step back" into a "step forth":
 	}
 ```
 
+## Bigger steps
+
+Generally we can can use the step size of 2<sup>n</sup> and bisect to the right
+position in `Pv` with n `cmov` instructions.  The approach is similar to Binary
+merging in *Knuth, Vol.3, p.203*.  We have implemented a variant with step=4
+in assembly.  Its merit depends on how cheap the underlying `cmov` instruction
+is.  On Haswell, `cmov` has 2-cycle latency, and step=4 beats step=2 when
+`Pn/Rn > 32`.  On Ryzen and Skylake, `cmov` has 1-cycle latency, so step=4
+rivals step=2 at smaller `Pn/Rn` ratios.
+
 ## Benchmarks
 
 For benchmarking we use a real-world data set obtained from `apt-cache unmet`.
