@@ -3,14 +3,14 @@
 A set is represented by an array of increasing integers.  Given two sets `P`
 and `R`, we usually want to check that `P >= R`, or in set notation, `R ⊆ P`
 (Requires is a subset of Provides).  For completeness, and for integration with
-a package manager, we also have to recognize other outcomes, such as `P < R`.
+the package manager, we also have to recognize other outcomes, such as `P < R`.
 We therefore design a three-way comparison routine which returns `1` when `P > R`,
 `-1` when `P < R`, and `0` when `P == R`.
 
 To perform comparison, we utilize a [merge algorithm]: at each step, two
 current elements, that of `P` and that or `R`, are compared.  If `P < R`,
 `P` gets advanced; if `P > R`, `R` gets advanced (in other words, the smaller
-one catches up, so that the elements are traversed in order); otherwise, when
+one catches up, so that the elements are matched in order); otherwise, when
 `P == R`, both pointers are advanced.
 
 [merge algorithm]: https://en.wikipedia.org/wiki/Merge_algorithm#Merging_two_lists
