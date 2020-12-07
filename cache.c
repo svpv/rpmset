@@ -10,13 +10,12 @@
 #include "setstring.h"
 #include "rpmsetcmp-common.h"
 
-#define CACHE_SIZE (256 - 2)
+#define CACHE_SIZE (256 - 1)
 
 struct cache {
-    // Hash values, for linear search with a sentinel.
+    // Hash values, for linear search with a sentinel;
+    // hv[CACHE_SIZE] is the number of entries in ev[].
     uint16_t hv[CACHE_SIZE+1];
-    // The number of entries in ev[].
-    uint16_t n;
     // Malloc'd cache entries.
     struct cache_ent *ev[CACHE_SIZE];
 };
@@ -27,8 +26,9 @@ struct cache {
 static void cache_free(void *arg)
 {
     struct cache *C = arg;
+    size_t nent = C->hv[CACHE_SIZE];
     struct cache_ent **ep = C->ev;
-    struct cache_ent **ev_end = C->ev + C->n;
+    struct cache_ent **ev_end = C->ev + nent;
     while (ep < ev_end)
 	free(*ep++);
     free(C);
@@ -182,16 +182,18 @@ size_t cache_decode(const char *s, size_t len, const uint32_t **pv)
     struct cache *C = cache_tlsobj();
     uint16_t h = hash16(s, len);
     size_t i; // entry index
+    size_t nent = C->hv[CACHE_SIZE];
     struct cache_ent *e;
-    // Install a sentinel.
-    C->hv[C->n] = h;
     uint16_t *hp = C->hv;
     while (1) {
+	// Install the sentinel (may clobber CACHE_SIZE).
+	C->hv[nent] = h;
 	// Find by hash.
 	hp = cache_find16(hp, h);
+	C->hv[CACHE_SIZE] = nent; // restore if clobbered
 	i = hp - C->hv;
 	// Found the sentinel?
-	if (unlikely(i == C->n))
+	if (unlikely(i == nent))
 	    break;
 	// Found an entry.
 	e = C->ev[i];
@@ -225,11 +227,11 @@ size_t cache_decode(const char *s, size_t len, const uint32_t **pv)
     memset(v - 1, 0, 4);
     memcpy(e->s, s, len);
     // Insert.
-    if (unlikely(C->n <= INSERT_AT))
-	i = C->n++;
+    if (unlikely(nent <= INSERT_AT))
+	i = nent, C->hv[CACHE_SIZE] = ++nent;
     else {
-	if (unlikely(C->n < CACHE_SIZE))
-	    C->n++;
+	if (unlikely(nent < CACHE_SIZE))
+	    C->hv[CACHE_SIZE] = ++nent;
 	else
 	    free(C->ev[CACHE_SIZE-1]);
 	i = INSERT_AT;
