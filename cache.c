@@ -124,15 +124,25 @@ static uint16_t *cache_find16(uint16_t *hp, uint16_t h)
  *            (a) update                       (b) insert
  */
 
-#define MOVE_SIZE 32
+#define MOVE_SIZE 16
 #define INSERT_AT (CACHE_SIZE - MOVE_SIZE - 1)
 
 #ifdef __SSE__
-static inline void memmove64(void *dst, const void *src)
+static inline void memmove32(void *dst, const void *src)
 {
     __m128 *q = dst;
     const __m128 *p = src;
     // Compared to movdqu, movups is encoded with one fewer byte.
+    __m128 xmm0 = _mm_loadu_ps((void *)(p + 0));
+    __m128 xmm1 = _mm_loadu_ps((void *)(p + 1));
+    _mm_storeu_ps((void *)(q + 0), xmm0);
+    _mm_storeu_ps((void *)(q + 1), xmm1);
+}
+
+static inline void memmove64(void *dst, const void *src)
+{
+    __m128 *q = dst;
+    const __m128 *p = src;
     __m128 xmm0 = _mm_loadu_ps((void *)(p + 0));
     __m128 xmm1 = _mm_loadu_ps((void *)(p + 1));
     __m128 xmm2 = _mm_loadu_ps((void *)(p + 2));
@@ -147,17 +157,10 @@ static inline void memmove64(void *dst, const void *src)
 static void cache_move(uint16_t *hp, struct cache_ent **ep)
 {
 #ifdef __SSE__
-    memmove64(hp + 1, hp);
-    if (sizeof *ep == 4) {
-	memmove64(ep + 17, ep + 16);
-	memmove64(ep +  1, ep +  0);
-    }
-    else {
-	memmove64(ep + 25, ep + 24);
-	memmove64(ep + 17, ep + 16);
+    memmove32(hp + 1, hp);
+    if (sizeof *ep > 4)
 	memmove64(ep +  9, ep +  8);
-	memmove64(ep +  1, ep +  0);
-    }
+    memmove64(ep +  1, ep +  0);
 #else
     memmove(hp + 1, hp, MOVE_SIZE * sizeof *hp);
     memmove(ep + 1, ep, MOVE_SIZE * sizeof *ep);
