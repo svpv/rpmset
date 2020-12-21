@@ -225,6 +225,7 @@ static inline size_t dec1(const char *s, size_t len6, int bpp, int m, uint32_t v
 }
 
 #define Routine(unpack, m, kn, kc, ke, ko, kq) \
+__attribute__((flatten)) \
 static size_t decode##m(const char *s, size_t len, int bpp, uint32_t v[]) \
 { return dec1(s, len, bpp, m, v, unpack, kn, kc, ke, ko, kq); }
 
