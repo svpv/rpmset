@@ -16,8 +16,6 @@ struct cache {
     // Hash values, for linear search with a sentinel;
     // hv[CACHE_SIZE] is the number of entries in ev[].
     uint16_t hv[CACHE_SIZE+1];
-    // A level of indiretion for ev[] pointers, to make LRU moves cheaper.
-    uint8_t jv[CACHE_SIZE];
     // Malloc'd cache entries.
     struct cache_ent *ev[CACHE_SIZE];
 };
@@ -130,34 +128,42 @@ static uint16_t *cache_find16(uint16_t *hp, uint16_t h)
 #define INSERT_AT (CACHE_SIZE - MOVE_SIZE - 1)
 
 #ifdef __SSE__
-static inline void memmove16(void *dst, const void *src)
-{
-    __m128 *q = dst;
-    const __m128 *p = src;
-    // Compared to movdqu, movups is encoded with one fewer byte.
-    __m128 xmm0 = _mm_loadu_ps((void *) p);
-    _mm_storeu_ps((void *) q, xmm0);
-}
-
 static inline void memmove32(void *dst, const void *src)
 {
     __m128 *q = dst;
     const __m128 *p = src;
+    // Compared to movdqu, movups is encoded with one fewer byte.
     __m128 xmm0 = _mm_loadu_ps((void *)(p + 0));
     __m128 xmm1 = _mm_loadu_ps((void *)(p + 1));
     _mm_storeu_ps((void *)(q + 0), xmm0);
     _mm_storeu_ps((void *)(q + 1), xmm1);
 }
+
+static inline void memmove64(void *dst, const void *src)
+{
+    __m128 *q = dst;
+    const __m128 *p = src;
+    __m128 xmm0 = _mm_loadu_ps((void *)(p + 0));
+    __m128 xmm1 = _mm_loadu_ps((void *)(p + 1));
+    __m128 xmm2 = _mm_loadu_ps((void *)(p + 2));
+    __m128 xmm3 = _mm_loadu_ps((void *)(p + 3));
+    _mm_storeu_ps((void *)(q + 0), xmm0);
+    _mm_storeu_ps((void *)(q + 1), xmm1);
+    _mm_storeu_ps((void *)(q + 2), xmm2);
+    _mm_storeu_ps((void *)(q + 3), xmm3);
+}
 #endif
 
-static void cache_move(uint16_t *hp, uint8_t *jp)
+static void cache_move(uint16_t *hp, struct cache_ent **ep)
 {
 #ifdef __SSE__
     memmove32(hp + 1, hp);
-    memmove16(jp + 1, jp);
+    if (sizeof *ep > 4)
+	memmove64(ep +  9, ep +  8);
+    memmove64(ep +  1, ep +  0);
 #else
     memmove(hp + 1, hp, MOVE_SIZE * sizeof *hp);
-    memmove(jp + 1, jp, MOVE_SIZE * sizeof *jp);
+    memmove(ep + 1, ep, MOVE_SIZE * sizeof *ep);
 #endif
 }
 
@@ -178,8 +184,7 @@ size_t cache_decode(const char *s, size_t len, const uint32_t **pv)
 {
     struct cache *C = cache_tlsobj();
     uint16_t h = hash16(s, len);
-    size_t i; // hash index
-    size_t j; // entry index
+    size_t i; // entry index
     size_t nent = C->hv[CACHE_SIZE];
     struct cache_ent *e;
     uint16_t *hp = C->hv;
@@ -194,7 +199,7 @@ size_t cache_decode(const char *s, size_t len, const uint32_t **pv)
 	if (unlikely(i == nent))
 	    break;
 	// Found an entry.
-	j = C->jv[i], e = C->ev[j];
+	e = C->ev[i];
 	// Recheck the entry.
 	if (unlikely(memcmp(e->s, s, len) || e->s[len])) {
 	    hp++;
@@ -203,8 +208,8 @@ size_t cache_decode(const char *s, size_t len, const uint32_t **pv)
 	// Hit, move to front.
 	if (i >= MOVE_SIZE) {
 	    i -= MOVE_SIZE;
-	    cache_move(C->hv + i, C->jv + i);
-	    C->hv[i] = h, C->jv[i] = j;
+	    cache_move(C->hv + i, C->ev + i);
+	    C->hv[i] = h, C->ev[i] = e;
 	}
 	*pv = ENT_V(e, len);
 	return e->n;
@@ -226,16 +231,16 @@ size_t cache_decode(const char *s, size_t len, const uint32_t **pv)
     memcpy(e->s, s, len);
     // Insert.
     if (unlikely(nent <= INSERT_AT))
-	i = j = nent, C->hv[CACHE_SIZE] = ++nent;
+	i = nent, C->hv[CACHE_SIZE] = ++nent;
     else {
 	if (unlikely(nent < CACHE_SIZE))
-	    j = nent, C->hv[CACHE_SIZE] = ++nent;
+	    C->hv[CACHE_SIZE] = ++nent;
 	else
-	    j = C->jv[CACHE_SIZE-1], free(C->ev[j]);
+	    free(C->ev[CACHE_SIZE-1]);
 	i = INSERT_AT;
-	cache_move(C->hv + i, C->jv + i);
+	cache_move(C->hv + i, C->ev + i);
     }
-    C->hv[i] = h, C->jv[i] = j, C->ev[j] = e;
+    C->hv[i] = h, C->ev[i] = e;
     *pv = v;
     return n;
 }
