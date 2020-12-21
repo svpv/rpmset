@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <pthread.h>
+#include <sys/single_threaded.h>
 #ifdef __SSE__
 #include <xmmintrin.h>
 #endif
@@ -44,6 +45,9 @@ static __attribute__((constructor)) void cache_init(void)
 
 static struct cache *cache_tlsobj(void)
 {
+    static struct cache *C1;
+    if (C1 && __libc_single_threaded)
+	return C1;
     struct cache *C = pthread_getspecific(cache_key);
     if (likely(C))
 	return C;
@@ -52,6 +56,8 @@ static struct cache *cache_tlsobj(void)
     memset(C, 0, sizeof *C);
     int rc = pthread_setspecific(cache_key, C);
     assert(rc == 0);
+    if (__libc_single_threaded)
+	C1 = C;
     return C;
 }
 
