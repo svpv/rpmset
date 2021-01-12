@@ -89,7 +89,12 @@ static inline V32x4 glue24(V32x4 x)
 	_mm_setr_epi8( \
 		k0, k1, k2, k3, k4, k5, k6, k7, \
 		k8, k9, ka, kb, kc, kd, ke, kf)
+#if defined(__ALTIVEC__)
+#include <altivec.h>
+#define VSHUF8(x, t) (__m128i) vec_perm((__vector uint8_t) x, vec_splat_u32(0), (__vector uint8_t) t)
+#else
 #define VSHUF8(x, t) _mm_shuffle_epi8(x, t)
+#endif
 
 #define VEXTR8(x, k) (uint32_t)_mm_extract_epi8(x, k)
 #define VEXTR16(x, k) (uint32_t)_mm_extract_epi16(x, k)
@@ -114,6 +119,10 @@ static inline V32x4 glue24(V32x4 x)
 #define VSHLV32(x, k0, k1, k2, k3) \
 	_mm_sllv_epi32(x, _mm_setr_epi32(k0, k1, k2, k3))
 #define VSHLV32_COST 2
+#elif defined(__ALTIVEC__)
+#define VSHLV32(x, k0, k1, k2, k3) \
+	(__m128i) vec_sl((__vector uint32_t) x, (__vector uint32_t) { k0, k1, k2, k3 })
+#define VSHLV32_COST 1
 #else
 #define VSHLV32(x, k0, k1, k2, k3) \
 	_mm_mullo_epi32(x, _mm_setr_epi32(1U<<k0, 1U<<k1, 1U<<k2, 1U<<k3))
@@ -131,9 +140,17 @@ static inline V32x4 glue24(V32x4 x)
 
 #define VOR(x, y) _mm_or_si128(x, y)
 #define VAND(x, y) _mm_and_si128(x, y)
+#if defined(__ALTIVEC__)
+#define VTESTZ(x, y) vec_all_eq((__vector uint32_t) _mm_and_si128(x, y), vec_splat_u32(0))
+#else
 #define VTESTZ(x, y) _mm_testz_si128(x, y)
+#endif
 
+#if defined(__ALTIVEC__)
+#define VMOVZWLO(x) _mm_unpacklo_epi16(x, _mm_setzero_si128())
+#else
 #define VMOVZWLO(x) _mm_cvtepu16_epi32(x)
+#endif
 #define VMOVZWHI(x) _mm_unpackhi_epi16(x, _mm_setzero_si128())
 
 #define glue12(x) _mm_maddubs_epi16(x, _mm_set1_epi32(0x40014001))
