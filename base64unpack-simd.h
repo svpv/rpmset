@@ -70,6 +70,74 @@ static inline V32x4 glue24(V32x4 x)
     return vsliq_n_u32(x, y, 12);
 }
 
+#elif defined(__ALTIVEC__)
+#include <altivec.h>
+
+#define Vto8(x) (__vector uint8_t)(x)
+#define Vto16(x) (__vector uint16_t)(x)
+#define Vfrom8(x) (__vector uint32_t)(x)
+#define Vfrom16(x) (__vector uint32_t)(x)
+
+#define V32x4 __vector uint32_t
+#define VLOAD(p) Vfrom8(vec_vsx_ld(0, (const uint8_t *)(p)))
+#define VSTORE(p, x) vec_vsx_st(x, 0, p)
+#define VSTORE64(p, x) VSTORE(p, x) // easier
+
+#define VADD8(x, y) Vfrom8(vec_add(Vto8(x), Vto8(y)))
+#define VCMPEQ8(x, y) Vfrom8(vec_cmpeq(Vto8(x), Vto8(y)))
+
+#define V8x16_C(k0, k1, k2, k3, k4, k5, k6, k7, \
+		k8, k9, ka, kb, kc, kd, ke, kf) \
+	Vfrom8(((__vector uint8_t){ \
+		k0, k1, k2, k3, k4, k5, k6, k7, \
+		k8, k9, ka, kb, kc, kd, ke, kf }))
+#define VSHUF8(x, t) Vfrom8(vec_perm(Vto8(x), vec_splat_u8(0), Vto8(t)))
+
+#define VDUP8(k) V8x16_C(k, k, k, k, k, k, k, k, \
+			 k, k, k, k, k, k, k, k)
+#define VDUP32(k) (__vector uint32_t){ k, k, k, k }
+
+#define VEXTR8(x, k) vec_extract(Vto8(x), k)
+#define VEXTR16(x, k) vec_extract(Vto16(x), k)
+#define VEXTR32(x, k) vec_extract(x, k)
+
+#define VSHLV16(x, k0, k1, k2, k3, k4, k5, k6, k7) \
+	Vfrom16(vec_sl(Vto16(x), (__vector uint16_t){ k0, k1, k2, k3, k4, k5, k6, k7 }))
+#define VSHLV32(x, k0, k1, k2, k3) \
+	vec_sl(x, (__vector uint32_t){ k0, k1, k2, k3 })
+#define VSHRV32(x, k0, k1, k2, k3) \
+	vec_sr(x, (__vector uint32_t){ k0, k1, k2, k3 })
+#define VSHRV64(x, k0, k1) \
+	(__vector uint32_t) vec_sr((__vector uint64_t)(x), (__vector uint64_t){ k0, k1 })
+#define VSHLV32_COST 1
+
+#define VSHR8(x, k) Vfrom8(vec_sr(Vto8(x), vec_splat_u8(k)))
+#define VSHL16(x, k) Vfrom16(vec_sl(Vto16(x), vec_splat_u16(k)))
+#define VSHR16(x, k) Vfrom16(vec_sr(Vto16(x), vec_splat_u16(k)))
+#define VSHL32(x, k) vec_sl(x, VDUP32(k))
+#define VSHR32(x, k) vec_sr(x, VDUP32(k))
+
+#define VMOVZWLO(x) Vfrom16(vec_mergeh(Vto16(x), vec_splat_u16(0)))
+#define VMOVZWHI(x) Vfrom16(vec_mergel(Vto16(x), vec_splat_u16(0)))
+
+#define VOR(x, y) vec_or(x, y)
+#define VAND(x, y) vec_and(x, y)
+#define VTESTZ(x, y) vec_all_eq(vec_and(x, y), vec_splat_u32(0))
+
+static inline V32x4 glue12(V32x4 x)
+{
+    V32x4 y = VSHR16(x, 8);
+    x = VAND(x, VDUP32(0x00ff00ff));
+    return VOR(x, VSHL32(y, 6));
+}
+
+static inline V32x4 glue24(V32x4 x)
+{
+    V32x4 y = VSHR32(x, 16);
+    x = VAND(x, VDUP32(0x0000ffff));
+    return VOR(x, VSHL32(y, 12));
+}
+
 #else // x86
 #include <smmintrin.h>
 
