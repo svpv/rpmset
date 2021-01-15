@@ -39,13 +39,23 @@ static inline size_t dec_xblen(int m, unsigned kn, uint32_t v0, uint32_t vmax)
     return bits1 + bits2;
 }
 
+#if defined(__x86_64__) || UINTPTR_MAX > UINT32_MAX
+#define reg_t uint64_t
+#define ireg_t int64_t
+#define ctzReg(x) (unsigned)__builtin_ctzll(x)
+#else
+#define reg_t uint32_t
+#define ireg_t int32_t
+#define ctzReg(x) (unsigned)__builtin_ctz(x)
+#endif
+
 // On ARM, clz is cheaper than ctz (ctz compiles to rbit+clz).
 #ifdef __aarch64__
-#define BitCnt(x) __builtin_clz(x)
-#define BitRev(x) asm("rbit %w0,%w0" : "+r" (x))
+#define BitCnt(x) (unsigned)__builtin_clzll(x)
+#define BitRev(x) asm("rbit %x0,%x0" : "+r" (x))
 #define BitShift(x, k) x <<= k
 #else
-#define BitCnt(x) __builtin_ctzll(x)
+#define BitCnt(x) ctzReg(x)
 #define BitRev(x) (void)(x)
 #define BitShift(x, k) x >>= k
 #endif
@@ -55,12 +65,13 @@ static inline size_t dec_xblen(int m, unsigned kn, uint32_t v0, uint32_t vmax)
 #define Fill(k, len6)				\
     do {					\
 	b = base64dec##k(s);			\
-	if (unlikely((int64_t) b < 0))		\
+	if (unlikely((ireg_t) b < 0))		\
 	    return 0;				\
 	bfill = 6 * k;				\
 	s += k, len6 -= 6 * k;			\
     } while (0)
 
+#if defined(__x86_64__) || UINTPTR_MAX > UINT32_MAX
 #define Refill					\
     do {					\
 	if (unlikely(len6c < LEN6C(kq))) {	\
@@ -89,6 +100,55 @@ static inline size_t dec_xblen(int m, unsigned kn, uint32_t v0, uint32_t vmax)
 	    case 10:Fill(10,len6c); break;	\
 	    }					\
     } while (0)
+
+#else // 32-bit bitstream regster, high half pending to be loaded
+#define Refill					\
+    do {					\
+	if (kq <= 5) {				\
+	    if (unlikely(len6c < LEN6C(kq))) {	\
+		if (len6c == LEN6C(0)) { return 0; } \
+		if (len6c == LEN6C(1)) { Fill(1, len6c); break; } \
+		if (len6c == LEN6C(2)) { Fill(2, len6c); break; } \
+		if (len6c == LEN6C(3)) { Fill(3, len6c); break; } \
+		if (len6c == LEN6C(4)) { Fill(4, len6c); break; } \
+		if (len6c == LEN6C(5)) { Fill(5, len6c); break; } \
+	    }					\
+	    switch (kq) {			\
+	    case 2: Fill(2, len6c); break;	\
+	    case 3: Fill(3, len6c); break;	\
+	    case 4: Fill(4, len6c); break;	\
+	    case 5: Fill(5, len6c); break;	\
+	    }					\
+	    break;				\
+	}					\
+	if (bhi) {				\
+	    b = base64dec5(bhi), bhi = NULL;	\
+	    if ((ireg_t) b < 0)			\
+		return 0;			\
+	    bfill = 6 * 5;			\
+	    break;				\
+	}					\
+	if (unlikely(len6c < LEN6C(kq))) {	\
+	    if (len6c == LEN6C(0)) { return 0; } \
+	    if (len6c == LEN6C(1)) { Fill(1, len6c); break; } \
+	    if (len6c == LEN6C(2)) { Fill(2, len6c); break; } \
+	    if (len6c == LEN6C(3)) { Fill(3, len6c); break; } \
+	    if (len6c == LEN6C(4)) { Fill(4, len6c); break; } \
+	    if (len6c == LEN6C(5)) { Fill(5, len6c); break; } \
+	    if (len6c == LEN6C(6)) { Fill(1, len6c); bhi = s; s += 5, len6c -= 6 * 5; break; } \
+	    if (len6c == LEN6C(7)) { Fill(2, len6c); bhi = s; s += 5, len6c -= 6 * 5; break; } \
+	    if (len6c == LEN6C(8)) { Fill(3, len6c); bhi = s; s += 5, len6c -= 6 * 5; break; } \
+	    if (len6c == LEN6C(9)) { Fill(4, len6c); bhi = s; s += 5, len6c -= 6 * 5; break; } \
+	}					\
+	switch (kq) {				\
+	case 6: Fill(1, len6c); bhi = s; s += 5, len6c -= 6 * 5; break; \
+	case 7: Fill(2, len6c); bhi = s; s += 5, len6c -= 6 * 5; break; \
+	case 8: Fill(3, len6c); bhi = s; s += 5, len6c -= 6 * 5; break; \
+	case 9: Fill(4, len6c); bhi = s; s += 5, len6c -= 6 * 5; break; \
+	case 10:Fill(5, len6c); bhi = s; s += 5, len6c -= 6 * 5; break; \
+	}					\
+    } while (0)
+#endif
 
 // Q-delta loop iteration, opimized for fewer instructions.
 #define IterB(i)				\
@@ -163,7 +223,8 @@ static inline size_t dec1(const char *s, size_t len6, int bpp, int m, uint32_t v
     uint32_t v0 = (uint32_t) -1;
     uint32_t vmax = (bpp == 32) ? UINT32_MAX : (1U << bpp) - 1;
     uint32_t *v_start = v;
-    uint64_t b = 0; // variable-length bitstream
+    reg_t b = 0; // variable-length bitstream
+    const char *bhi = NULL; // the second half to load from if reg_t is 32-bit
     unsigned bfill = 0;
     len6 *= 6;
     s += 2, len6 -= 2 * 6;
@@ -172,7 +233,7 @@ static inline size_t dec1(const char *s, size_t len6, int bpp, int m, uint32_t v
     int32_t len6c = len6 - C0;
 #define LEN6C(x) (int32_t)(6 * (x) - C0)
     // Bulk decoding.
-    while (len6c >= LEN6C(kc + ko) && (int32_t)(len6c + bfill) > (int32_t)((R0 - v0) >> m)) {
+    while (len6c >= LEN6C(kc + ko) && (int32_t)(len6c + bfill + 30 * !!bhi) > (int32_t)((R0 - v0) >> m)) {
 	// Decode a block of m-bit integers.
 	unsigned e;
 	bool ok = unpack(s, v, &e);
@@ -201,11 +262,17 @@ static inline size_t dec1(const char *s, size_t len6, int bpp, int m, uint32_t v
     BitRev(b);
     // Read the rest from the bitstream.
     uint32_t rmask = (1U << m) - 1;
-    while (len6 || b) {
+    while (len6 || b || bhi) {
 	uint32_t q = 0;
 	while (b == 0) {
 	    q += bfill;
-	    if (likely(len6 > 6))
+	    if (sizeof(b) < 8 && kq > 5 && bhi) {
+		b = base64dec5(bhi), bhi = NULL;
+		if ((ireg_t) b < 0)
+		    return 0;
+		bfill = 6 * 5;
+	    }
+	    else if (likely(len6 > 6))
 		Fill(2, len6);
 	    else if (likely(len6 == 6))
 		Fill(1, len6);
@@ -215,10 +282,16 @@ static inline size_t dec1(const char *s, size_t len6, int bpp, int m, uint32_t v
 	uint32_t z = __builtin_ctzll(b);
 	q += z++;
 	b >>= z, bfill -= z;
-	uint64_t r = b;
+	uint32_t r = b;
 	int rfill = bfill, left;
 	while ((left = rfill - m) < 0) {
-	    if (likely(len6 > 6))
+	    if (sizeof(b) < 8 && kq > 5 && bhi) {
+		b = base64dec5(bhi), bhi = NULL;
+		if ((ireg_t) b < 0)
+		    return 0;
+		bfill = 6 * 5;
+	    }
+	    else if (likely(len6 > 6))
 		Fill(2, len6);
 	    else if (likely(len6 == 6))
 		Fill(1, len6);
