@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdlib.h>
 #include <assert.h>
 
 struct pair {
@@ -42,15 +43,19 @@ void getpairs(void)
 #if defined(__i386__) || defined(__x86_64__)
 #include <x86intrin.h>
 #define rdtsc() __rdtsc()
-#elif defined(__aarch64__)
+#else
 static inline uint64_t rdtsc(void)
 {
     uint64_t t;
+#if defined(__aarch64__)
     asm volatile("mrs %0, cntvct_el0" : "=r"(t));
-    return t;
-}
+#elif defined(__powerpc64__)
+    asm volatile("mfspr %0, 268" : "=r"(t));
 #else
 #error "rdtsc not supported"
+#endif
+    return t;
+}
 #endif
 
 #ifdef OLD
