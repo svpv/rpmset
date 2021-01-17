@@ -71,6 +71,15 @@ static inline size_t dec_xblen(int m, unsigned kn, uint32_t v0, uint32_t vmax)
 	s += k, len6 -= 6 * k;			\
     } while (0)
 
+#define FillHi(k, len6)				\
+    do {					\
+	bhi = base64dec##k(s);			\
+	if (unlikely(bhi < 0))			\
+	    return 0;				\
+	bhi = ~bhi;				\
+	s += k, len6 -= 6 * k;			\
+    } while (0)
+
 #if defined(__x86_64__) || UINTPTR_MAX > UINT32_MAX
 #define Refill					\
     do {					\
@@ -122,9 +131,7 @@ static inline size_t dec_xblen(int m, unsigned kn, uint32_t v0, uint32_t vmax)
 	    break;				\
 	}					\
 	if (bhi) {				\
-	    b = base64dec5(bhi), bhi = NULL;	\
-	    if ((ireg_t) b < 0)			\
-		return 0;			\
+	    b = ~bhi, bhi = 0;			\
 	    bfill = 6 * 5;			\
 	    break;				\
 	}					\
@@ -135,17 +142,17 @@ static inline size_t dec_xblen(int m, unsigned kn, uint32_t v0, uint32_t vmax)
 	    if (len6c == LEN6C(3)) { Fill(3, len6c); break; } \
 	    if (len6c == LEN6C(4)) { Fill(4, len6c); break; } \
 	    if (len6c == LEN6C(5)) { Fill(5, len6c); break; } \
-	    if (len6c == LEN6C(6)) { Fill(1, len6c); bhi = s; s += 5, len6c -= 6 * 5; break; } \
-	    if (len6c == LEN6C(7)) { Fill(2, len6c); bhi = s; s += 5, len6c -= 6 * 5; break; } \
-	    if (len6c == LEN6C(8)) { Fill(3, len6c); bhi = s; s += 5, len6c -= 6 * 5; break; } \
-	    if (len6c == LEN6C(9)) { Fill(4, len6c); bhi = s; s += 5, len6c -= 6 * 5; break; } \
+	    if (len6c == LEN6C(6)) { Fill(1, len6c); FillHi(5, len6c); break; } \
+	    if (len6c == LEN6C(7)) { Fill(2, len6c); FillHi(5, len6c); break; } \
+	    if (len6c == LEN6C(8)) { Fill(3, len6c); FillHi(5, len6c); break; } \
+	    if (len6c == LEN6C(9)) { Fill(4, len6c); FillHi(5, len6c); break; } \
 	}					\
 	switch (kq) {				\
-	case 6: Fill(1, len6c); bhi = s; s += 5, len6c -= 6 * 5; break; \
-	case 7: Fill(2, len6c); bhi = s; s += 5, len6c -= 6 * 5; break; \
-	case 8: Fill(3, len6c); bhi = s; s += 5, len6c -= 6 * 5; break; \
-	case 9: Fill(4, len6c); bhi = s; s += 5, len6c -= 6 * 5; break; \
-	case 10:Fill(5, len6c); bhi = s; s += 5, len6c -= 6 * 5; break; \
+	case 6: Fill(1, len6c); FillHi(5, len6c); break; \
+	case 7: Fill(2, len6c); FillHi(5, len6c); break; \
+	case 8: Fill(3, len6c); FillHi(5, len6c); break; \
+	case 9: Fill(4, len6c); FillHi(5, len6c); break; \
+	case 10:Fill(5, len6c); FillHi(5, len6c); break; \
 	}					\
     } while (0)
 #endif
@@ -224,7 +231,7 @@ static inline size_t dec1(const char *s, size_t len6, int bpp, int m, uint32_t v
     uint32_t vmax = (bpp == 32) ? UINT32_MAX : (1U << bpp) - 1;
     uint32_t *v_start = v;
     reg_t b = 0; // variable-length bitstream
-    const char *bhi = NULL; // the second half to load from if reg_t is 32-bit
+    int32_t bhi = 0; // the second half if reg_t is 32-bit
     unsigned bfill = 0;
     len6 *= 6;
     s += 2, len6 -= 2 * 6;
@@ -267,9 +274,7 @@ static inline size_t dec1(const char *s, size_t len6, int bpp, int m, uint32_t v
 	while (b == 0) {
 	    q += bfill;
 	    if (sizeof(b) < 8 && kq > 5 && bhi) {
-		b = base64dec5(bhi), bhi = NULL;
-		if ((ireg_t) b < 0)
-		    return 0;
+		b = ~bhi, bhi = 0;
 		bfill = 6 * 5;
 	    }
 	    else if (likely(len6 > 6))
@@ -286,9 +291,7 @@ static inline size_t dec1(const char *s, size_t len6, int bpp, int m, uint32_t v
 	int rfill = bfill, left;
 	while ((left = rfill - m) < 0) {
 	    if (sizeof(b) < 8 && kq > 5 && bhi) {
-		b = base64dec5(bhi), bhi = NULL;
-		if ((ireg_t) b < 0)
-		    return 0;
+		b = ~bhi, bhi = 0;
 		bfill = 6 * 5;
 	    }
 	    else if (likely(len6 > 6))
