@@ -62,24 +62,6 @@ static inline size_t dec_xblen(int m, unsigned kn, uint32_t v0, uint32_t vmax)
 
 #define ADD1 1
 
-#if defined(__x86_64__) && defined(__SSE4_1__)
-#define Fill10(len6)				\
-    do {					\
-	V32x4 x, y;				\
-	if (!unpack6(s, &x)) return 0;		\
-	x = glue12(x);				\
-	y = glue24(x);				\
-	x = VBLEND16(x, y, 0x0f);		\
-	x = VSHUF8(x, V8x16_C(0, 1, 2, 4, 5, 6, 8, 9, \
-		             -1,-1,-1,-1,-1,-1,-1,-1)); \
-	b = _mm_extract_epi64(x, 0);		\
-	bfill = 6 * 10;				\
-	s += 10, len6 -= 6 * 10;		\
-    } while (0)
-#else
-#define Fill10(len6) Fill(10, len6)
-#endif
-
 #define Fill(k, len6)				\
     do {					\
 	b = base64dec##k(s);			\
@@ -124,11 +106,7 @@ static inline size_t dec_xblen(int m, unsigned kn, uint32_t v0, uint32_t vmax)
 	    case 7: Fill(7, len6c); break;	\
 	    case 8: Fill(8, len6c); break;	\
 	    case 9: Fill(9, len6c); break;	\
-	    case 10:				\
-		    if (likely(len6c >= LEN6C(16))) \
-			Fill10(len6c);		\
-		    else			\
-			Fill(10,len6c);		\
+	    case 10:Fill(10,len6c); break;	\
 	    }					\
     } while (0)
 
