@@ -84,17 +84,9 @@ static inline size_t dec_xblen(int m, unsigned kn, uint32_t v0, uint32_t vmax)
 #define Refill					\
     do {					\
 	if (unlikely(len6c < LEN6C(kq))) {	\
-	    if (len6c == LEN6C(0)) { return 0; } \
-	    if (len6c == LEN6C(1)) { Fill(1, len6c); break; } \
-	    if (len6c == LEN6C(2)) { Fill(2, len6c); break; } \
-	    if (len6c == LEN6C(3)) { Fill(3, len6c); break; } \
-	    if (len6c == LEN6C(4)) { Fill(4, len6c); break; } \
-	    if (len6c == LEN6C(5)) { Fill(5, len6c); break; } \
-	    if (len6c == LEN6C(6)) { Fill(6, len6c); break; } \
-	    if (len6c == LEN6C(7)) { Fill(7, len6c); break; } \
-	    if (len6c == LEN6C(8)) { Fill(8, len6c); break; } \
-	    if (len6c == LEN6C(9)) { Fill(9, len6c); break; } \
-	    if (len6c == LEN6C(10)){ Fill(10,len6c); break; } \
+	    if (likely(len6c >  LEN6C(1))) { Fill(2, len6c); break; } \
+	    if (likely(len6c == LEN6C(1))) { Fill(1, len6c); break; } \
+	    return 0;				\
 	}					\
 	else					\
 	    switch (kq) {			\
@@ -115,12 +107,9 @@ static inline size_t dec_xblen(int m, unsigned kn, uint32_t v0, uint32_t vmax)
     do {					\
 	if (kq <= 5) {				\
 	    if (unlikely(len6c < LEN6C(kq))) {	\
-		if (len6c == LEN6C(0)) { return 0; } \
-		if (len6c == LEN6C(1)) { Fill(1, len6c); break; } \
-		if (len6c == LEN6C(2)) { Fill(2, len6c); break; } \
-		if (len6c == LEN6C(3)) { Fill(3, len6c); break; } \
-		if (len6c == LEN6C(4)) { Fill(4, len6c); break; } \
-		if (len6c == LEN6C(5)) { Fill(5, len6c); break; } \
+		if (likely(len6c >  LEN6C(1))) { Fill(2, len6c); break; } \
+		if (likely(len6c == LEN6C(1))) { Fill(1, len6c); break; } \
+		return 0;			\
 	    }					\
 	    switch (kq) {			\
 	    case 2: Fill(2, len6c); break;	\
@@ -136,16 +125,9 @@ static inline size_t dec_xblen(int m, unsigned kn, uint32_t v0, uint32_t vmax)
 	    break;				\
 	}					\
 	if (unlikely(len6c < LEN6C(kq))) {	\
-	    if (len6c == LEN6C(0)) { return 0; } \
-	    if (len6c == LEN6C(1)) { Fill(1, len6c); break; } \
-	    if (len6c == LEN6C(2)) { Fill(2, len6c); break; } \
-	    if (len6c == LEN6C(3)) { Fill(3, len6c); break; } \
-	    if (len6c == LEN6C(4)) { Fill(4, len6c); break; } \
-	    if (len6c == LEN6C(5)) { Fill(5, len6c); break; } \
-	    if (len6c == LEN6C(6)) { Fill(1, len6c); FillHi(5, len6c); break; } \
-	    if (len6c == LEN6C(7)) { Fill(2, len6c); FillHi(5, len6c); break; } \
-	    if (len6c == LEN6C(8)) { Fill(3, len6c); FillHi(5, len6c); break; } \
-	    if (len6c == LEN6C(9)) { Fill(4, len6c); FillHi(5, len6c); break; } \
+	    if (likely(len6c >  LEN6C(1))) { Fill(2, len6c); break; } \
+	    if (likely(len6c == LEN6C(1))) { Fill(1, len6c); break; } \
+	    return 0;				\
 	}					\
 	switch (kq) {				\
 	case 6: Fill(1, len6c); FillHi(5, len6c); break; \

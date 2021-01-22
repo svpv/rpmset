@@ -225,7 +225,7 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 	if (bfill == 0)
 	    dlen = len, dbfill = bfill;
 	else {
-	     unsigned dload = len < kq ? len : kq;
+	     unsigned dload = (len >= kq) ? kq : (len >= 2) ? 2 : len;
 	     dlen = len - dload;
 	     dbfill = dload * 6 - bfill;
 	}
