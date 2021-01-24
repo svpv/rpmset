@@ -93,47 +93,6 @@ static inline size_t enc_xblen(int m, unsigned kn, uint32_t v0, uint32_t vmax)
     return bits1 + bits2;
 }
 
-// To interleave SIMD blocks and the q-bitstream properly, we maintain
-// a small queue of delta blocks.
-struct Q {
-    unsigned start, end;
-#define QN 256
-    uint32_t v[QN];
-};
-
-#define Q_init(Q) (Q)->start = (Q)->end = 0
-#define Q_empty(Q) ((Q)->start == (Q)->end)
-
-static inline unsigned Q_nblock(struct Q *Q, unsigned n)
-{
-    unsigned k = Q->end - Q->start;
-    k += (Q->end < Q->start) * QN;
-    return k / n;
-}
-
-static inline uint32_t *Q_push(struct Q *Q, unsigned n)
-{
-    uint32_t *v = Q->v + Q->end;
-    Q->end += n;
-    if (Q->end > QN) {
-	v = Q->v;
-	Q->end = n;
-	assert(Q->end <= Q->start);
-    }
-    return v;
-}
-
-static inline uint32_t *Q_pop(struct Q *Q, unsigned n)
-{
-    uint32_t *v = Q->v + Q->start;
-    Q->start += n;
-    if (Q->start > QN) {
-	v = Q->v;
-	Q->start = n;
-    }
-    return v;
-}
-
 #define popcnt32 __builtin_popcount
 #define popcnt64 __builtin_popcountll
 
@@ -152,84 +111,92 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
     uint32_t vmax = (bpp == 32) ? UINT32_MAX : (1U << bpp) - 1;
     uint64_t b = 0;
     unsigned bfill = 0;
-    struct Q Q; Q_init(&Q);
-    int bal = 0; // balance between SIMD blocks and the q-bitstream
-    size_t dlen = len; // len and bfill from the decoder's perspective
-    unsigned dbfill = bfill;
+    unsigned dbfill = 0; // bfill from the decoder's perspective
+    char *bput = NULL; // anchor to put kq characters
 
-#define FLUSH1							\
+#define Put(s, b, kq)						\
     do {							\
-	while (bal >= 0 && !Q_empty(&Q)) {			\
-	    uint32_t *odv = Q_pop(&Q, kn + 1);			\
-	    pack(odv, s, odv[kn]);				\
-	    s += kc;						\
-	    if (ke)						\
-		bal += popcnt32(odv[kn]);			\
-	    bal -= kn;						\
+	switch (kq) {						\
+	case 10:s[9] = base64[(b>>54)&63]; /* FALLTHRU */	\
+	case 9: s[8] = base64[(b>>48)&63]; /* FALLTHRU */	\
+	case 8: s[7] = base64[(b>>42)&63]; /* FALLTHRU */	\
+	case 7: s[6] = base64[(b>>36)&63]; /* FALLTHRU */	\
+	case 6: s[5] = base64[(b>>30)&63]; /* FALLTHRU */	\
+	case 5: s[4] = base64[(b>>24)&63]; /* FALLTHRU */	\
+	case 4: s[3] = base64[(b>>18)&63]; /* FALLTHRU */	\
+	case 3: s[2] = base64[(b>>12)&63]; /* FALLTHRU */	\
+	default:s[1] = base64[(b>>06)&63];			\
+		s[0] = base64[(b>>00)&63];			\
 	}							\
-	if (len >= kq && bfill >= 6 * kq) {			\
-	    switch (kq) {					\
-	    case 10:s[9] = base64[(b>>54)&63]; /* FALLTHRU */	\
-	    case 9: s[8] = base64[(b>>48)&63]; /* FALLTHRU */	\
-	    case 8: s[7] = base64[(b>>42)&63]; /* FALLTHRU */	\
-	    case 7: s[6] = base64[(b>>36)&63]; /* FALLTHRU */	\
-	    case 6: s[5] = base64[(b>>30)&63]; /* FALLTHRU */	\
-	    case 5: s[4] = base64[(b>>24)&63]; /* FALLTHRU */	\
-	    case 4: s[3] = base64[(b>>18)&63]; /* FALLTHRU */	\
-	    case 3: s[2] = base64[(b>>12)&63]; /* FALLTHRU */	\
-	    default:s[1] = base64[(b>>06)&63];			\
-		    s[0] = base64[(b>>00)&63];			\
-	    }							\
-	    bal += popcnt64(b & Wask(6 * kq));			\
-	    b >>= 6 * kq, bfill -= 6 * kq;			\
-	    s += kq, len -= kq;					\
-	    continue;						\
-	}							\
-	break;							\
-    } while (1)
+    } while (0)
 
-    while (dlen >= kc + ko && 6 * dlen + dbfill > 5 + enc_xblen(m, kn, v0, vmax)) {
+#define Flush1(kq)						\
+    do {							\
+	bput = bput ? bput : s;					\
+	Put(bput, b, kq);					\
+	if (bput == s)						\
+	    s += kq, len -= kq;					\
+	bput = NULL;						\
+	b >>= 6 * kq, bfill -= 6 * kq;				\
+    } while (0)
+
+    while (len >= kc + ko && 6 * len + dbfill > 5 + enc_xblen(m, kn, v0, vmax)) {
 	// Make a block of deltas.
-	uint32_t *dv = Q_push(&Q, kn + 1);
+	uint32_t dv[kn];
 	for (unsigned i = 0; i < kn; i++) {
 	    uint32_t v1 = v[i];
 	    dv[i] = v1 - v0 - 1;
 	    v0 = v1;
 	}
-	dv[kn] = 0;
 	v += kn;
-	len -= kc; // not yet written, but must be accounted for
-	// Write the bitstream and flush the blocks along the way.
-	unsigned efill = 0;
-	for (unsigned i = 0; i < kn; i++) {
-	    if (efill >= ke)
-		bfill += dv[i] >> m;
-	    else {
-		efill += dv[i] >> m;
-		if (efill > ke)
-		    bfill += efill - ke;
+	// May need to collect ke extra bits for the block.
+	unsigned i = 0;
+	unsigned e = 0;
+	for (unsigned efill = 0; efill < ke; i++) {
+	    efill += dv[i] >> m;
+	    if (efill >= ke) {
+		bfill += efill - ke;
+		// The stop bit is still pending.  Hence i is not increased,
+		// and dv[i] is clobbered to obliterate its q-bits.
+		dv[i] &= (1U << m) - 1;
+		break;
 	    }
-	    if (efill >= ke)
-		FLUSH1;
-	    if (efill >= ke)
-		b |= (1ULL << bfill++);
-	    else
-		dv[kn] |= (1U << efill++);
-	    if (efill >= ke)
-		FLUSH1;
+	    e |= (1U << efill++);
 	}
-	// The condition in the loop control must be the same as in the
-	// decoder.  In the decoder, the condition is checked after all
-	// the necessary q-bits from the previous iteration have been read.
-	// Therefore, we must account for the pending q-bits.
-	if (bfill == 0)
-	    dlen = len, dbfill = bfill;
-	else {
-	     unsigned dload = (len >= kq) ? kq : (len >= 2) ? 2 : len;
-	     dlen = len - dload;
-	     dbfill = dload * 6 - bfill;
+	// Put the block.
+	pack(dv, s, e);
+	s += kc, len -= kc;
+	// Collect and flush the remaining q-bits into the bitsream.
+	for (; i < kn; i++) {
+	    bfill += dv[i] >> m;
+	    while (bfill >= 6 * kq)
+		Flush1(kq);
+	    b |= (1ULL << bfill++);
 	}
+	if (bfill >= 6 * kq)
+	    Flush1(kq);
+	// If there are pending q-bits for the current block, the right place
+	// to put them is here, before the next block.
+	if (bfill && bput == NULL) {
+	    if (len < kq)
+		break;
+	    bput = s;
+	    s += kq, len -= kq;
+	}
+	// Update the decoder's view for the next iteration.
+	dbfill = bfill ? 6 * kq - bfill : 0;
     }
+
+#define Flush2							\
+    do {							\
+	if (bput) {						\
+	    if (bfill < 6 * kq)					\
+		break;						\
+	    Flush1(kq);						\
+	}							\
+	while (bfill >= 6 * 2)					\
+	    Flush1(2);						\
+    } while (0)
 
     uint32_t rmask = (1U << m) - 1;
     while (v < v_end) {
@@ -237,7 +204,7 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 	uint32_t dv = v1 - v0 - 1;
 	v0 = v1;
 	bfill += dv >> m;
-	FLUSH1;
+	Flush2;
 	b |= (1ULL << bfill);
 	bfill++;
 	dv &= rmask;
@@ -246,51 +213,21 @@ static inline size_t enc1(const uint32_t v[], size_t n, int bpp, int m, char *s,
 	if (bfill > 64) {
 	    int left = bfill - 64;
 	    bfill = 64;
-	    FLUSH1;
+	    Flush2;
 	    dv >>= m - left;
 	    b |= (uint64_t) dv << bfill;
 	    bfill += left;
 	}
-	FLUSH1;
     }
 
-    if (!Q_empty(&Q)) {
-	if (bal < 0) {
-	    assert(bfill > 6 * (kq - 1));
-	    switch (kq) {
-	    case 10:s[9] = base64[(b>>54)&63]; // FALLTHRU
-	    case 9: s[8] = base64[(b>>48)&63]; // FALLTHRU
-	    case 8: s[7] = base64[(b>>42)&63]; // FALLTHRU
-	    case 7: s[6] = base64[(b>>36)&63]; // FALLTHRU
-	    case 6: s[5] = base64[(b>>30)&63]; // FALLTHRU
-	    case 5: s[4] = base64[(b>>24)&63]; // FALLTHRU
-	    case 4: s[3] = base64[(b>>18)&63]; // FALLTHRU
-	    case 3: s[2] = base64[(b>>12)&63]; // FALLTHRU
-	    default:s[1] = base64[(b>>06)&63];
-		    s[0] = base64[(b>>00)&63];
-	    }
-	    s += kq, len -= kq;
-	    b = 0, bfill = 0;
-	    bal = 0;
-	}
-	do {
-	    uint32_t *odv = Q_pop(&Q, kn + 1);
-	    pack(odv, s, odv[kn]);
-	    s += kc;
-	    b >>= ke, bfill -= ke;
-	    if ((int) bfill < 0) bfill = 0;
-	} while (!Q_empty(&Q));
+    if (bput) {
+	assert(bfill > 6 * (kq - 1));
+	Flush1(kq); // bfill goes negative
     }
-    if (bfill > 00) *s++ = base64[(b>>00)&63], len--;
-    if (bfill > 06) *s++ = base64[(b>>06)&63], len--;
-    if (bfill > 12) *s++ = base64[(b>>12)&63], len--;
-    if (bfill > 18) *s++ = base64[(b>>18)&63], len--;
-    if (bfill > 24) *s++ = base64[(b>>24)&63], len--;
-    if (bfill > 30) *s++ = base64[(b>>30)&63], len--;
-    if (bfill > 36) *s++ = base64[(b>>36)&63], len--;
-    if (bfill > 42) *s++ = base64[(b>>42)&63], len--;
-    if (bfill > 48) *s++ = base64[(b>>48)&63], len--;
-    if (bfill > 54) *s++ = base64[(b>>54)&63], len--;
+    while ((int) bfill > 6)
+	Flush1(2);
+    if ((int) bfill > 0)
+	Flush1(1);
     assert(len == 0);
     *s = '\0';
     return s - s_start;
