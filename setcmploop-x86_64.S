@@ -18,8 +18,9 @@
 #define Le   %r10d
 #define Ge   %r11d
 
-#define Px   %xmm0
-#define Rx   %xmm1
+#define Px0  %xmm1
+#define Px1  %xmm2
+#define Rx   %xmm3
 
 #define L(name) .L##name
 #define C(name) .L##name##__LINE__
@@ -101,7 +102,7 @@ L(gt):
 	mov (Rv),Rval
 	jmp L(cmp)
 
-	// Probe Pv with step=5.
+	// Probe Pv with step=9.
 L2(cmp):
 	cmp Rval,Pval
 	jb L2(lt)
@@ -119,59 +120,71 @@ C2(eq):
 	jne L2(cmp)
 	jmp L(breakP)
 L2(lt2):
-	cmp Rval,10*4(Pv)
-	jae L2(found10)
-	lea 15*4(Pv),Addr
-	cmp Rval,15*4(Pv)
-	jae L2(found15)
+	cmp Rval,18*4(Pv)
+	jae L2(found18)
+	lea 27*4(Pv),Addr
+	cmp Rval,27*4(Pv)
+	jae L2(found27)
 	mov Addr,Pv
 L2(lt):
-	cmp Rval,5*4(Pv)
+	cmp Rval,9*4(Pv)
 	jb L2(lt2)
-C2(found5):
-	movdqu 1*4(Pv),Px
+C2(found9):
+	movdqu 1*4(Pv),Px0
+	movdqu 5*4(Pv),Px1
 	movd Rval,Rx
 	pshufd $0,Rx,Rx
-	pcmpgtd Px,Rx
+	movdqa Rx,%xmm0
+	pcmpgtd Px0,Rx
+	pcmpgtd Px1,%xmm0
+	packssdw %xmm0,Rx
 	pmovmskb Rx,%eax
 	lea 1*4(Pv),Pv
 	xor Le,Le
 	not %eax
 	or $0x10000,%eax
 	tzcnt %eax,%eax
-	lea (Pv,%rax),Pv
+	lea (Pv,%rax,2),Pv
 	mov (Pv),Pval
 	cmp Pv,Pend
 	jne L2(ge)
 	jmp L(breakP)
-L2(found10):
-	movdqu 6*4(Pv),Px
+L2(found18):
+	movdqu 10*4(Pv),Px0
+	movdqu 14*4(Pv),Px1
 	movd Rval,Rx
 	pshufd $0,Rx,Rx
-	pcmpgtd Px,Rx
+	movdqa Rx,%xmm0
+	pcmpgtd Px0,Rx
+	pcmpgtd Px1,%xmm0
+	packssdw %xmm0,Rx
 	pmovmskb Rx,%eax
-	lea 6*4(Pv),Pv
+	lea 10*4(Pv),Pv
 	xor Le,Le
 	not %eax
 	or $0x10000,%eax
 	tzcnt %eax,%eax
-	lea (Pv,%rax),Pv
+	lea (Pv,%rax,2),Pv
 	mov (Pv),Pval
 	cmp Pv,Pend
 	jne L2(ge)
 	jmp L(breakP)
-L2(found15):
-	movdqu 11*4(Pv),Px
+L2(found27):
+	movdqu 19*4(Pv),Px0
+	movdqu 23*4(Pv),Px1
 	movd Rval,Rx
 	pshufd $0,Rx,Rx
-	pcmpgtd Px,Rx
+	movdqa Rx,%xmm0
+	pcmpgtd Px0,Rx
+	pcmpgtd Px1,%xmm0
+	packssdw %xmm0,Rx
 	pmovmskb Rx,%eax
-	lea 11*4(Pv),Pv
+	lea 19*4(Pv),Pv
 	xor Le,Le
 	not %eax
 	or $0x10000,%eax
 	tzcnt %eax,%eax
-	lea (Pv,%rax),Pv
+	lea (Pv,%rax,2),Pv
 	mov (Pv),Pval
 	cmp Pv,Pend
 	jne L2(ge)

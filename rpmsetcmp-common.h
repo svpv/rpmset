@@ -2,7 +2,7 @@
 #include <string.h>
 #define likely(x) __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(x, 0)
-#define SENTINELS 5
+#define SENTINELS 9
 #define install_sentinels(v, n) memset(v + n, 0x7f, SENTINELS * 4)
 #pragma GCC visibility push(hidden)
 size_t cache_decode(const char *s, size_t len, const uint32_t **pv);
