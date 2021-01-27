@@ -101,7 +101,7 @@ L(gt):
 	mov (Rv),Rval
 	jmp L(cmp)
 
-	// Probe Pv with step=4.
+	// Probe Pv with step=5.
 L2(cmp):
 	cmp Rval,Pval
 	jb L2(lt)
@@ -119,16 +119,16 @@ C2(eq):
 	jne L2(cmp)
 	jmp L(breakP)
 L2(lt2):
-	cmp Rval,8*4(Pv)
-	jae L2(found8)
-	lea 12*4(Pv),Addr
-	cmp Rval,12*4(Pv)
-	jae L2(found12)
+	cmp Rval,10*4(Pv)
+	jae L2(found10)
+	lea 15*4(Pv),Addr
+	cmp Rval,15*4(Pv)
+	jae L2(found15)
 	mov Addr,Pv
 L2(lt):
-	cmp Rval,4*4(Pv)
+	cmp Rval,5*4(Pv)
 	jb L2(lt2)
-C2(found4):
+C2(found5):
 	movdqu 1*4(Pv),Px
 	movd Rval,Rx
 	pshufd $0,Rx,Rx
@@ -137,36 +137,39 @@ C2(found4):
 	lea 1*4(Pv),Pv
 	xor Le,Le
 	not %eax
+	or $0x10000,%eax
 	tzcnt %eax,%eax
 	lea (Pv,%rax),Pv
 	mov (Pv),Pval
 	cmp Pv,Pend
 	jne L2(ge)
 	jmp L(breakP)
-L2(found8):
-	movdqu 5*4(Pv),Px
+L2(found10):
+	movdqu 6*4(Pv),Px
 	movd Rval,Rx
 	pshufd $0,Rx,Rx
 	pcmpgtd Px,Rx
 	pmovmskb Rx,%eax
-	lea 5*4(Pv),Pv
+	lea 6*4(Pv),Pv
 	xor Le,Le
 	not %eax
+	or $0x10000,%eax
 	tzcnt %eax,%eax
 	lea (Pv,%rax),Pv
 	mov (Pv),Pval
 	cmp Pv,Pend
 	jne L2(ge)
 	jmp L(breakP)
-L2(found12):
-	movdqu 9*4(Pv),Px
+L2(found15):
+	movdqu 11*4(Pv),Px
 	movd Rval,Rx
 	pshufd $0,Rx,Rx
 	pcmpgtd Px,Rx
 	pmovmskb Rx,%eax
-	lea 9*4(Pv),Pv
+	lea 11*4(Pv),Pv
 	xor Le,Le
 	not %eax
+	or $0x10000,%eax
 	tzcnt %eax,%eax
 	lea (Pv,%rax),Pv
 	mov (Pv),Pval
