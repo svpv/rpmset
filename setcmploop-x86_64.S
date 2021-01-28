@@ -142,7 +142,6 @@ C2(found9):
 	lea 1*4(Pv),Pv
 	xor Le,Le
 	not %eax
-	or $0x10000,%eax
 	tzcnt %eax,%eax
 	lea (Pv,%rax,2),Pv
 	mov (Pv),Pval
@@ -162,7 +161,6 @@ L2(found18):
 	lea 10*4(Pv),Pv
 	xor Le,Le
 	not %eax
-	or $0x10000,%eax
 	tzcnt %eax,%eax
 	lea (Pv,%rax,2),Pv
 	mov (Pv),Pval
@@ -182,7 +180,6 @@ L2(found27):
 	lea 19*4(Pv),Pv
 	xor Le,Le
 	not %eax
-	or $0x10000,%eax
 	tzcnt %eax,%eax
 	lea (Pv,%rax,2),Pv
 	mov (Pv),Pval
