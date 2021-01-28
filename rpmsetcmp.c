@@ -27,7 +27,7 @@ int rpmsetcmp(const char *Ps, size_t Plen, const char *Rs, size_t Rlen)
 	    return -4;
 	if (unlikely(Pbpp > Rbpp))
 	    Pn = downsample(Pv, Pn, Pv, Pbpp - Rbpp);
-	install_sentinels(Pv, Pn);
+	install_sentinels(Pv, Pn, Rbpp);
 	if (likely(Rn < STACK_MAXV1)) {
 	    uint32_t Rv[Rn];
 	    Rn = setstring_decode(Rs, Rlen, Rbpp, Rv);
@@ -89,12 +89,12 @@ int rpmsetcmp(const char *Ps, size_t Plen, const char *Rs, size_t Rlen)
 	if (Pn + Rn < STACK_MAXV2) {
 	    uint32_t Pw[Pn+SENTINELS];
 	    Pn = downsample(Pv, Pn, Pw, Pbpp - Rbpp);
-	    install_sentinels(Pw, Pn);
+	    install_sentinels(Pw, Pn, Rbpp);
 	    return setcmploop(Pw, Pn, Rv, Rn);
 	}
 	uint32_t *Pw = vmalloc(Pn + SENTINELS);
 	Pn = downsample(Pv, Pn, Pw, Pbpp - Rbpp);
-	install_sentinels(Pw, Pn);
+	install_sentinels(Pw, Pn, Rbpp);
 	int ret = setcmploop(Pw, Pn, Rv, Rn);
 	free(Pw);
 	return ret;
@@ -107,7 +107,7 @@ int rpmsetcmp(const char *Ps, size_t Plen, const char *Rs, size_t Rlen)
     else {
 	uint32_t *Pw = Rv + Rn;
 	Pn = downsample(Pv, Pn, Pw, Pbpp - Rbpp);
-	install_sentinels(Pw, Pn);
+	install_sentinels(Pw, Pn, Rbpp);
 	ret = setcmploop(Pw, Pn, Rv, Rn);
     }
     free(Rv);
