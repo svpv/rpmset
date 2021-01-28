@@ -20,7 +20,9 @@
 
 #define Px0  %xmm1
 #define Px1  %xmm2
-#define Rx   %xmm3
+#define Px2  %xmm3
+#define Px3  %xmm4
+#define Rx   %xmm5
 
 #define L(name) .L##name
 #define C(name) .L##name##__LINE__
@@ -120,68 +122,86 @@ C2(eq):
 	jne L2(cmp)
 	jmp L(breakP)
 L2(lt2):
-	cmp Rval,18*4(Pv)
-	jae L2(found18)
-	lea 27*4(Pv),Addr
-	cmp Rval,27*4(Pv)
-	jae L2(found27)
+	cmp Rval,34*4(Pv)
+	jae L2(found34)
+	lea 51*4(Pv),Addr
+	cmp Rval,51*4(Pv)
+	jae L2(found51)
 	mov Addr,Pv
 L2(lt):
-	cmp Rval,9*4(Pv)
+	cmp Rval,17*4(Pv)
 	jb L2(lt2)
-C2(found9):
+C2(found17):
 	movdqu 1*4(Pv),Px0
 	movdqu 5*4(Pv),Px1
-	movd Rval,Rx
+	movdqu 9*4(Pv),Px2
+	movdqu 13*4(Pv),Px3
+	lea -1(Rval),%eax
+	movd %eax,Rx
 	pshufd $0,Rx,Rx
-	movdqa Rx,%xmm0
-	pcmpgtd Px0,Rx
-	pcmpgtd Px1,%xmm0
-	packssdw %xmm0,Rx
-	pmovmskb Rx,%eax
+	pcmpgtd Rx,Px0
+	pcmpgtd Rx,Px1
+	packssdw Px1,Px0
+	pcmpgtd Rx,Px2
+	pcmpgtd Rx,Px3
+	packssdw Px3,Px2
+	packsswb Px2,Px0
+	pmovmskb Px0,%eax
 	lea 1*4(Pv),Pv
 	xor Le,Le
-	not %eax
+	or $0x10000,%eax
 	tzcnt %eax,%eax
-	lea (Pv,%rax,2),Pv
+	lea (Pv,%rax,4),Pv
 	mov (Pv),Pval
 	cmp Pv,Pend
 	jne L2(ge)
 	jmp L(breakP)
-L2(found18):
-	movdqu 10*4(Pv),Px0
-	movdqu 14*4(Pv),Px1
-	movd Rval,Rx
+L2(found34):
+	movdqu 18*4(Pv),Px0
+	movdqu 22*4(Pv),Px1
+	movdqu 26*4(Pv),Px2
+	movdqu 30*4(Pv),Px3
+	lea -1(Rval),%eax
+	movd %eax,Rx
 	pshufd $0,Rx,Rx
-	movdqa Rx,%xmm0
-	pcmpgtd Px0,Rx
-	pcmpgtd Px1,%xmm0
-	packssdw %xmm0,Rx
-	pmovmskb Rx,%eax
-	lea 10*4(Pv),Pv
+	pcmpgtd Rx,Px0
+	pcmpgtd Rx,Px1
+	packssdw Px1,Px0
+	pcmpgtd Rx,Px2
+	pcmpgtd Rx,Px3
+	packssdw Px3,Px2
+	packsswb Px2,Px0
+	pmovmskb Px0,%eax
+	lea 18*4(Pv),Pv
 	xor Le,Le
-	not %eax
+	or $0x10000,%eax
 	tzcnt %eax,%eax
-	lea (Pv,%rax,2),Pv
+	lea (Pv,%rax,4),Pv
 	mov (Pv),Pval
 	cmp Pv,Pend
 	jne L2(ge)
 	jmp L(breakP)
-L2(found27):
-	movdqu 19*4(Pv),Px0
-	movdqu 23*4(Pv),Px1
-	movd Rval,Rx
+L2(found51):
+	movdqu 35*4(Pv),Px0
+	movdqu 39*4(Pv),Px1
+	movdqu 43*4(Pv),Px2
+	movdqu 47*4(Pv),Px3
+	lea -1(Rval),%eax
+	movd %eax,Rx
 	pshufd $0,Rx,Rx
-	movdqa Rx,%xmm0
-	pcmpgtd Px0,Rx
-	pcmpgtd Px1,%xmm0
-	packssdw %xmm0,Rx
-	pmovmskb Rx,%eax
-	lea 19*4(Pv),Pv
+	pcmpgtd Rx,Px0
+	pcmpgtd Rx,Px1
+	packssdw Px1,Px0
+	pcmpgtd Rx,Px2
+	pcmpgtd Rx,Px3
+	packssdw Px3,Px2
+	packsswb Px2,Px0
+	pmovmskb Px0,%eax
+	lea 35*4(Pv),Pv
 	xor Le,Le
-	not %eax
+	or $0x10000,%eax
 	tzcnt %eax,%eax
-	lea (Pv,%rax,2),Pv
+	lea (Pv,%rax,4),Pv
 	mov (Pv),Pval
 	cmp Pv,Pend
 	jne L2(ge)
