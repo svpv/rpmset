@@ -2,8 +2,12 @@
 #include <string.h>
 #define likely(x) __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(x, 0)
+#ifdef __x86_64__
 #define SENTINELS 9
-#define install_sentinels(v, n) memset(v + n, 0x7f, SENTINELS * 4)
+#else
+#define SENTINELS 2
+#endif
+#define install_sentinels(v, n) memset(v + n, 0xff, SENTINELS * 4)
 #pragma GCC visibility push(hidden)
 size_t cache_decode(const char *s, size_t len, const uint32_t **pv);
 size_t downsample(const uint32_t *v, size_t n, uint32_t *w, int bpp);
