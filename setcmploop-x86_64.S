@@ -145,8 +145,8 @@ C2(found9):
 	tzcnt %eax,%eax
 	lea (Pv,%rax,2),Pv
 	mov (Pv),Pval
-	cmp Pv,Pend
-	jne L2(ge)
+	cmp Pend,Pv
+	jb L2(ge)
 	jmp L(breakP)
 L2(found18):
 	movdqu 10*4(Pv),Px0
@@ -164,8 +164,8 @@ L2(found18):
 	tzcnt %eax,%eax
 	lea (Pv,%rax,2),Pv
 	mov (Pv),Pval
-	cmp Pv,Pend
-	jne L2(ge)
+	cmp Pend,Pv
+	jb L2(ge)
 	jmp L(breakP)
 L2(found27):
 	movdqu 19*4(Pv),Px0
@@ -183,8 +183,8 @@ L2(found27):
 	tzcnt %eax,%eax
 	lea (Pv,%rax,2),Pv
 	mov (Pv),Pval
-	cmp Pv,Pend
-	jne L2(ge)
+	cmp Pend,Pv
+	jb L2(ge)
 	jmp L(breakP)
 L2(gt):
 	xor Ge,Ge
