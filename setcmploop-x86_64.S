@@ -26,6 +26,8 @@
 #define C(name) .L##name##__LINE__
 #define L2(name) .L2##name
 #define C2(name) .L2##name##__LINE__
+#define L3(name) .L3##name
+#define C3(name) .L3##name##__LINE__
 
 FUNC(setcmploop)
 	mov Pend,%rax
@@ -37,7 +39,7 @@ FUNC(setcmploop)
 	mov (Pv),Pval
 	mov $8,Le
 	mov $8,Ge
-	jae L2(cmp)
+	jae L(bigstep)
 
 	// Probe Pv with step=2.
 L(cmp):
@@ -101,6 +103,10 @@ L(gt):
 	je L(breakR)
 	mov (Rv),Rval
 	jmp L(cmp)
+
+L(bigstep):
+	cmpl $0,-4(Rend)
+	js L3(cmp)
 
 	// Probe Pv with step=9.
 L2(cmp):
@@ -192,6 +198,78 @@ L2(gt):
 	je L(breakR)
 	mov (Rv),Rval
 	jmp L2(cmp)
+
+	// Probe Pv with step=4.
+L3(cmp):
+	cmp Rval,Pval
+	jb L3(lt)
+L3(ge):
+	add $4,Rv
+	cmp Rval,Pval
+	jne L3(gt)
+C3(eq):
+	add $4,Pv
+	cmp Rv,Rend
+	je L(breakR)
+	mov (Rv),Rval
+	mov (Pv),Pval
+	cmp Pv,Pend
+	jne L3(cmp)
+	jmp L(breakP)
+L3(lt2):
+	cmp Rval,8*4(Pv)
+	jae L3(found8)
+	lea 12*4(Pv),Addr
+	cmp Rval,12*4(Pv)
+	jae L3(found12)
+	mov Addr,Pv
+L3(lt):
+	cmp Rval,4*4(Pv)
+	jb L3(lt2)
+C3(found4):
+	cmp Rval,2*4(Pv)
+	lea 4*4(Pv),Addr
+	lea 2*4(Pv),Pv
+	cmovb Addr,Pv
+	xor Le,Le
+	lea -4(Pv),Addr
+	cmp Rval,-4(Pv)
+	cmovae Addr,Pv
+	mov (Pv),Pval
+	cmp Pv,Pend
+	jne L3(ge)
+	jmp L(breakP)
+L3(found8):
+	cmp Rval,6*4(Pv)
+	lea 8*4(Pv),Addr
+	lea 6*4(Pv),Pv
+	cmovb Addr,Pv
+	xor Le,Le
+	lea -4(Pv),Addr
+	cmp Rval,-4(Pv)
+	cmovae Addr,Pv
+	mov (Pv),Pval
+	cmp Pv,Pend
+	jne L3(ge)
+	jmp L(breakP)
+L3(found12):
+	cmp Rval,10*4(Pv)
+	lea 10*4(Pv),Pv
+	cmovb Addr,Pv
+	xor Le,Le
+	lea -4(Pv),Addr
+	cmp Rval,-4(Pv)
+	cmovae Addr,Pv
+	mov (Pv),Pval
+	cmp Pv,Pend
+	jne L3(ge)
+	jmp L(breakP)
+L3(gt):
+	xor Ge,Ge
+	cmp Rv,Rend
+	je L(breakR)
+	mov (Rv),Rval
+	jmp L3(cmp)
 
 L(breakP):
 	xor %eax,%eax
