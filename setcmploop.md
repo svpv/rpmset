@@ -201,6 +201,65 @@ is.  On Haswell, `cmov` has 2-cycle latency, and step=4 beats step=2 when
 `Pn/Rn > 32`.  On Ryzen and Skylake, `cmov` has 1-cycle latency, so step=4
 rivals step=2 at smaller `Pn/Rn` ratios.
 
+## SIMD scan
+
+Increasing the step size to step=8 and bisecting with 3 `cmov` instructions
+doesn't improve performance, due to the delays of sequential execution: each
+memory load has to wait for the outcome of the preceding load and comparison.
+
+Recall that we have `Pv[0] < Rval` and we need to advance `Pv` to the first
+element such that `*Pv >= Rval`.  Eight elements can be handed efficiently
+with two SIMD registers, which can be loaded simultaneously (unlike memory
+loads during binary search).  We call this technique "SIMD scan".
+
+```
+    Pv[0]                                                 Pv[9]
+     |                                                     |
+     v                                                     v
+     +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+
+     |   | |   | |   | |   | |   | |   | |   | |   | |   | |   |
+     +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+ +---+
+
+                     Px0                     Px1
+           |<------------------->| |<------------------->|
+```
+The technique can be conveniently extended from step=8 to step=9.  That is,
+if `P[9] >= Rval`, we can test the middle elements, which we load into SIMD
+registers `Px0` and `Px1`.  If all of them are less than `Rval`, the scan
+should take us to `Pv[9]`.  In the code below, this is achieved by inverting
+the mask.  (The result of `pmovmskb` is a 16-bit mask.  By inverting the mask,
+we set the bits `#16..#31`.  Bit `#16` works as a sentinel for `tzcnt`.)
+
+```asm
+L(found9):
+	movdqu 1*4(Pv),Px0
+	movdqu 5*4(Pv),Px1
+	movd Rval,Rx
+	pshufd $0,Rx,Rx
+	movdqa Rx,%xmm0
+	pcmpgtd Px0,Rx
+	pcmpgtd Px1,%xmm0
+	packssdw %xmm0,Rx
+	pmovmskb Rx,%eax
+	add $4,Pv
+	xor Le,Le
+	not %eax
+	tzcnt %eax,%eax
+	lea (Pv,%rax,2),Pv
+	cmp Pend,Pv
+	jae L(break)
+```
+There is a drawback to this technique, though: since `pcmpgtd` compares signed
+integers, it cannot be used on full `uint32_t` range.  Hence the technique is
+only usable if all elements in `Pv[]` and `Rv[]` are limited to `INT32_MAX`.
+It can be further shown that it is enough to test `Rv[Rn-1] <= INT32_MAX`.
+
+With signed comparison, `UINT32_MAX` sentinels at the end `Pv[]` would look
+negative to `pcmpgtd`.  Hence the scan can advance `Pv` past `Pend` (and take
+us to `Pv[9]`, per the above example).  This means that `Pv == Pend` is no
+longer a reliable test to break out of the loop; instead, we should test
+`Pv >= Pend` (in assembly, we use `jae L(break)`, not `je L(break)`).
+
 ## Benchmarks
 
 For benchmarking we use a real-world data set obtained from `apt-cache unmet`.
@@ -217,4 +276,4 @@ according to `rdtsc`.  The compiler is gcc 9.3 for `x86_64`, the CPU is Haswell.
 | step=2                                      | 2900            |
 | step=2 unrolled                             | 2510            |
 | [setcmploop.c](setcmploop.c)                | 2440            |
-| [setcmploop-x86\_64.S](setcmploop-x86_64.S) | 2310            |
+| [setcmploop-x86\_64.S](setcmploop-x86_64.S) | 2260            |
