@@ -136,58 +136,46 @@ L2(lt):
 	cmp Rval,9*4(Pv)
 	jb L2(lt2)
 C2(found9):
-	movdqu 1*4(Pv),Px0
-	movdqu 5*4(Pv),Px1
-	movd Rval,Rx
-	pshufd $0,Rx,Rx
-	movdqa Rx,%xmm0
-	pcmpgtd Px0,Rx
-	pcmpgtd Px1,%xmm0
-	packssdw %xmm0,Rx
-	pmovmskb Rx,%eax
+	vmovdqu 1*4(Pv),%ymm0
+	movd Rval,%xmm1
+	vpbroadcastd %xmm1,%ymm1
+	vpcmpgtd %ymm0,%ymm1,%ymm1
+	vpmovmskb %ymm1,%eax
 	lea 1*4(Pv),Pv
 	xor Le,Le
-	not %eax
-	tzcnt %eax,%eax
-	lea (Pv,%rax,2),Pv
+	not %rax
+	tzcnt %rax,%rax
+	lea (Pv,%rax,1),Pv
 	mov (Pv),Pval
 	cmp Pend,Pv
 	jb L2(ge)
 	jmp L(breakP)
 L2(found18):
-	movdqu 10*4(Pv),Px0
-	movdqu 14*4(Pv),Px1
-	movd Rval,Rx
-	pshufd $0,Rx,Rx
-	movdqa Rx,%xmm0
-	pcmpgtd Px0,Rx
-	pcmpgtd Px1,%xmm0
-	packssdw %xmm0,Rx
-	pmovmskb Rx,%eax
+	vmovdqu 10*4(Pv),%ymm0
+	movd Rval,%xmm1
+	vpbroadcastd %xmm1,%ymm1
+	vpcmpgtd %ymm0,%ymm1,%ymm1
+	vpmovmskb %ymm1,%eax
 	lea 10*4(Pv),Pv
 	xor Le,Le
-	not %eax
-	tzcnt %eax,%eax
-	lea (Pv,%rax,2),Pv
+	not %rax
+	tzcnt %rax,%rax
+	lea (Pv,%rax,1),Pv
 	mov (Pv),Pval
 	cmp Pend,Pv
 	jb L2(ge)
 	jmp L(breakP)
 L2(found27):
-	movdqu 19*4(Pv),Px0
-	movdqu 23*4(Pv),Px1
-	movd Rval,Rx
-	pshufd $0,Rx,Rx
-	movdqa Rx,%xmm0
-	pcmpgtd Px0,Rx
-	pcmpgtd Px1,%xmm0
-	packssdw %xmm0,Rx
-	pmovmskb Rx,%eax
+	vmovdqu 19*4(Pv),%ymm0
+	movd Rval,%xmm1
+	vpbroadcastd %xmm1,%ymm1
+	vpcmpgtd %ymm0,%ymm1,%ymm1
+	vpmovmskb %ymm1,%eax
 	lea 19*4(Pv),Pv
 	xor Le,Le
-	not %eax
-	tzcnt %eax,%eax
-	lea (Pv,%rax,2),Pv
+	not %rax
+	tzcnt %rax,%rax
+	lea (Pv,%rax,1),Pv
 	mov (Pv),Pval
 	cmp Pend,Pv
 	jb L2(ge)
