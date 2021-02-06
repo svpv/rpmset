@@ -239,6 +239,7 @@ L(breakR):
 	cmp Pv,Pend
 	cmovne %eax,Le
 L(ret):
+	vzeroupper
 	lea (Le,Ge,2),%ecx
 	mov $0x01fffe,%eax
 	shr %cl,%eax
