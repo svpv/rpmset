@@ -116,19 +116,17 @@ L(found27):
 	mov (Pv),Pval
 	cmp Pend,Pv
 	jb L(ge)
-	jmp L(breakP)
+L(breakP):
+	xor %eax,%eax
+	cmp Rv,Rend
+	cmovne %eax,Ge
+	jmp L(ret)
 L(gt):
 	xor Ge,Ge
 	cmp Rv,Rend
 	je L(breakR)
 	mov (Rv),Rval
 	jmp L(cmp)
-
-L(breakP):
-	xor %eax,%eax
-	cmp Rv,Rend
-	cmovne %eax,Ge
-	jmp L(ret)
 L(breakR):
 	xor %eax,%eax
 	cmp Pv,Pend
@@ -225,19 +223,17 @@ L(found27):
 	mov (Pv),Pval
 	cmp Pend,Pv
 	jb L(ge)
-	jmp L(breakP)
+L(breakP):
+	xor %eax,%eax
+	cmp Rv,Rend
+	cmovne %eax,Ge
+	jmp L(ret)
 L(gt):
 	xor Ge,Ge
 	cmp Rv,Rend
 	je L(breakR)
 	mov (Rv),Rval
 	jmp L(cmp)
-
-L(breakP):
-	xor %eax,%eax
-	cmp Rv,Rend
-	cmovne %eax,Ge
-	jmp L(ret)
 L(breakR):
 	xor %eax,%eax
 	cmp Pv,Pend
@@ -325,19 +321,17 @@ L(found12):
 	mov (Pv),Pval
 	cmp Pv,Pend
 	jne L(ge)
-	jmp L(breakP)
+L(breakP):
+	xor %eax,%eax
+	cmp Rv,Rend
+	cmovne %eax,Ge
+	jmp L(ret)
 L(gt):
 	xor Ge,Ge
 	cmp Rv,Rend
 	je L(breakR)
 	mov (Rv),Rval
 	jmp L(cmp)
-
-L(breakP):
-	xor %eax,%eax
-	cmp Rv,Rend
-	cmovne %eax,Ge
-	jmp L(ret)
 L(breakR):
 	xor %eax,%eax
 	cmp Pv,Pend
