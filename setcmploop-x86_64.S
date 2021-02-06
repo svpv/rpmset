@@ -70,7 +70,7 @@ C(found9):
 	pcmpgtd Px1,%xmm0
 	packssdw %xmm0,Rx
 	pmovmskb Rx,%eax
-	lea 1*4(Pv),Pv
+	add $1*4,Pv
 	xor Le,Le
 	not %eax
 	tzcnt %eax,%eax
@@ -89,7 +89,7 @@ L(found18):
 	pcmpgtd Px1,%xmm0
 	packssdw %xmm0,Rx
 	pmovmskb Rx,%eax
-	lea 10*4(Pv),Pv
+	add $10*4,Pv
 	xor Le,Le
 	not %eax
 	tzcnt %eax,%eax
@@ -108,7 +108,7 @@ L(found27):
 	pcmpgtd Px1,%xmm0
 	packssdw %xmm0,Rx
 	pmovmskb Rx,%eax
-	lea 19*4(Pv),Pv
+	add $19*4,Pv
 	xor Le,Le
 	not %eax
 	tzcnt %eax,%eax
@@ -185,11 +185,11 @@ C(found9):
 	vpbroadcastd %xmm1,%ymm1
 	vpcmpgtd %ymm0,%ymm1,%ymm1
 	vpmovmskb %ymm1,%eax
-	lea 1*4(Pv),Pv
+	add $1*4,Pv
 	xor Le,Le
 	not %rax
 	tzcnt %rax,%rax
-	lea (Pv,%rax,1),Pv
+	add %rax,Pv
 	mov (Pv),Pval
 	cmp Pend,Pv
 	jb L(ge)
@@ -200,11 +200,11 @@ L(found18):
 	vpbroadcastd %xmm1,%ymm1
 	vpcmpgtd %ymm0,%ymm1,%ymm1
 	vpmovmskb %ymm1,%eax
-	lea 10*4(Pv),Pv
+	add $10*4,Pv
 	xor Le,Le
 	not %rax
 	tzcnt %rax,%rax
-	lea (Pv,%rax,1),Pv
+	add %rax,Pv
 	mov (Pv),Pval
 	cmp Pend,Pv
 	jb L(ge)
@@ -215,11 +215,11 @@ L(found27):
 	vpbroadcastd %xmm1,%ymm1
 	vpcmpgtd %ymm0,%ymm1,%ymm1
 	vpmovmskb %ymm1,%eax
-	lea 19*4(Pv),Pv
+	add $19*4,Pv
 	xor Le,Le
 	not %rax
 	tzcnt %rax,%rax
-	lea (Pv,%rax,1),Pv
+	add %rax,Pv
 	mov (Pv),Pval
 	cmp Pend,Pv
 	jb L(ge)
