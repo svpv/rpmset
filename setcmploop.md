@@ -208,7 +208,7 @@ doesn't improve performance, due to the delays of sequential execution: each
 memory load has to wait for the outcome of the preceding load and comparison.
 
 Recall that we have `Pv[0] < Rval` and we need to advance `Pv` to the first
-element such that `*Pv >= Rval`.  Eight elements can be handed efficiently
+element such that `*Pv >= Rval`.  Eight elements can be handled efficiently
 with two SIMD registers, which can be loaded simultaneously (unlike memory
 loads during binary search).  We call this technique "SIMD scan".
 
