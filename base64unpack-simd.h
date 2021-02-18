@@ -210,22 +210,25 @@ static inline V32x4 glue24(V32x4 x)
 static inline V32x4 unpack6x(V32x4 x, V32x4 *lo, V32x4 *hi)
 {
 #if defined(__aarch64__)
-    const uint8x16x4_t lut0 = {
-	(uint8x16_t){ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 },
-	(uint8x16_t){ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 },
-	(uint8x16_t){ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 62, -1, -1, -1, 63 },
-	(uint8x16_t){ 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, -1, -1, -1, -1, -1, -1 },
+    const uint8x16x2_t lut0 = {
+	(uint8x16_t){  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 63,  0,  0,  0, 64 },
+	(uint8x16_t){ 53, 54, 55, 56, 57, 58, 59, 60, 61, 62,  0,  0,  0,  0,  0,  0 },
     };
-    const uint8x16x4_t lut1 = {
+    const uint8x16x2_t lut1 = {
 	(uint8x16_t){  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15 },
 	(uint8x16_t){ 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,  0,  0,  0,  0,  0 },
+    };
+    const uint8x16x2_t lut2 = {
 	(uint8x16_t){  0, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41 },
 	(uint8x16_t){ 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52,  0,  0,  0,  0,  0 },
     };
-    uint8x16_t y0 = vqtbl4q_u8(lut0, Vto8(x));
-    uint8x16_t y1 = vqtbl4q_u8(lut1, vsubq_u8(Vto8(x), vdupq_n_u8(64)));
-    y0 = vbslq_u8(vcltq_u8(Vto8(x), vdupq_n_u8(64)), y0, vsubq_u8(y1, vdupq_n_u8(1)));
-    return *lo = Vfrom8(y0);
+    uint8x16_t y0 = vqtbl2q_u8(lut0, vsubq_u8(Vto8(x), vdupq_n_u8(32)));
+    uint8x16_t y1 = vqtbl2q_u8(lut1, vsubq_u8(Vto8(x), vdupq_n_u8(64)));
+    uint8x16_t y2 = vqtbl2q_u8(lut2, vsubq_u8(Vto8(x), vdupq_n_u8(96)));
+    y0 = vbslq_u8(vcltq_u8(Vto8(x), vdupq_n_u8(64)), y0, y1);
+    y0 = vbslq_u8(vcltq_u8(Vto8(x), vdupq_n_u8(96)), y0, y2);
+    *lo = Vfrom8(y0);
+    return Vfrom8(vsubq_u8(y0, vdupq_n_u8(1)));
 #else
     V32x4 v2f = VDUP8(0x2f);
     // There are two peculiarities:
@@ -254,7 +257,7 @@ static inline bool u6err(V32x4 lo, V32x4 hi)
 {
 #if defined(__aarch64__)
     (void) hi;
-    return vmaxvq_u8(Vto8(lo)) == 255;
+    return vminvq_u8(Vto8(lo)) == 0;
 #else
     const V32x4 lut_lo = V8x16_C(
 	    0x15, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
