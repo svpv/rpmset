@@ -209,6 +209,24 @@ static inline V32x4 glue24(V32x4 x)
 // The lo and hi registers convey additional information to validate the input.
 static inline V32x4 unpack6x(V32x4 x, V32x4 *lo, V32x4 *hi)
 {
+#if defined(__aarch64__)
+    const uint8x16x4_t lut0 = {
+	(uint8x16_t){ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 },
+	(uint8x16_t){ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 },
+	(uint8x16_t){ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 62, -1, -1, -1, 63 },
+	(uint8x16_t){ 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, -1, -1, -1, -1, -1, -1 },
+    };
+    const uint8x16x4_t lut1 = {
+	(uint8x16_t){  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15 },
+	(uint8x16_t){ 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,  0,  0,  0,  0,  0 },
+	(uint8x16_t){  0, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41 },
+	(uint8x16_t){ 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52,  0,  0,  0,  0,  0 },
+    };
+    uint8x16_t y0 = vqtbl4q_u8(lut0, Vto8(x));
+    uint8x16_t y1 = vqtbl4q_u8(lut1, vsubq_u8(Vto8(x), vdupq_n_u8(64)));
+    y0 = vbslq_u8(vcltq_u8(Vto8(x), vdupq_n_u8(64)), y0, vsubq_u8(y1, vdupq_n_u8(1)));
+    return *lo = Vfrom8(y0);
+#else
     V32x4 v2f = VDUP8(0x2f);
     // There are two peculiarities:
     // - on x86, there is no VSHR8, it has to be emulated with VSHR32 and mask;
@@ -228,11 +246,16 @@ static inline V32x4 unpack6x(V32x4 x, V32x4 *lo, V32x4 *hi)
     V32x4 eq2f = VCMPEQ8(x, v2f);
     V32x4 roll = VSHUF8(lut_roll, VADD8(*hi, eq2f));
     return VADD8(x, roll);
+#endif
 }
 
 // Check if the intput was invalid, i.e. contained non-base64 characters.
 static inline bool u6err(V32x4 lo, V32x4 hi)
 {
+#if defined(__aarch64__)
+    (void) hi;
+    return vmaxvq_u8(Vto8(lo)) == 255;
+#else
     const V32x4 lut_lo = V8x16_C(
 	    0x15, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
 	    0x11, 0x11, 0x13, 0x1a, 0x1b, 0x1b, 0x1b, 0x1a);
@@ -242,6 +265,7 @@ static inline bool u6err(V32x4 lo, V32x4 hi)
     lo = VSHUF8(lut_lo, lo);
     hi = VSHUF8(lut_hi, hi);
     return !VTESTZ(lo, hi);
+#endif
 }
 
 static inline bool unpack6(const char *s, V32x4 *x)
