@@ -1,9 +1,6 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <pthread.h>
-#ifdef __SSE__
-#include <xmmintrin.h>
-#endif
 #ifdef __SSE2__
 #include <emmintrin.h>
 #endif
@@ -58,7 +55,7 @@ static struct cache *cache_tlsobj(void)
 // To find a cache entry corresponding to a set-string, we hash a few bytes
 // near the beginning of the string and run a linear search with a sentinel.
 
-static inline uint16_t hash16(const char *s, size_t len)
+static inline unsigned hash16(const char *s, size_t len)
 {
     uint32_t h;
     memcpy(&h, s + 4, 4);
@@ -66,7 +63,7 @@ static inline uint16_t hash16(const char *s, size_t len)
     return h >> 16;
 }
 
-static uint16_t *cache_find16(uint16_t *hp, uint16_t h)
+static uint16_t *find16(uint16_t *hp, unsigned h)
 {
 #ifdef __SSE2__
     unsigned mask;
@@ -126,7 +123,7 @@ static uint16_t *cache_find16(uint16_t *hp, uint16_t h)
 #define MOVE_SIZE 16
 #define INSERT_AT (CACHE_SIZE - MOVE_SIZE - 1)
 
-#ifdef __SSE__
+#ifdef __SSE2__
 static inline void memmove32(void *dst, const void *src)
 {
     __m128 *q = dst;
@@ -155,10 +152,10 @@ static inline void memmove64(void *dst, const void *src)
 
 static void cache_move(uint16_t *hp, struct cache_ent **ep)
 {
-#ifdef __SSE__
+#if defined(__SSE2__) && MOVE_SIZE == 16
     memmove32(hp + 1, hp);
     if (sizeof *ep > 4)
-	memmove64(ep +  9, ep +  8);
+	memmove64(ep + 9, ep + 8);
     memmove64(ep +  1, ep +  0);
 #else
     memmove(hp + 1, hp, MOVE_SIZE * sizeof *hp);
@@ -182,7 +179,7 @@ struct cache_ent {
 size_t cache_decode(const char *s, size_t len, const uint32_t **pv)
 {
     struct cache *C = cache_tlsobj();
-    uint16_t h = hash16(s, len);
+    unsigned h = hash16(s, len);
     size_t i; // entry index
     size_t nent = C->hv[CACHE_SIZE];
     struct cache_ent *e;
@@ -191,7 +188,7 @@ size_t cache_decode(const char *s, size_t len, const uint32_t **pv)
 	// Install the sentinel (may clobber CACHE_SIZE).
 	C->hv[nent] = h;
 	// Find by hash.
-	hp = cache_find16(hp, h);
+	hp = find16(hp, h);
 	C->hv[CACHE_SIZE] = nent; // restore if clobbered
 	i = hp - C->hv;
 	// Found the sentinel?
