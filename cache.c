@@ -62,8 +62,7 @@ static inline uint16_t hash16(const char *s, size_t len)
 {
     uint32_t h;
     memcpy(&h, s + 4, 4);
-    h *= 2654435761U;
-    h += len << 16;
+    h *= 668265263U + 2 * len;
     return h >> 16;
 }
 
