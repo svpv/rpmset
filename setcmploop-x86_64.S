@@ -181,7 +181,7 @@ L(lt):
 	jb L(lt2)
 C(found9):
 	vmovdqu 1*4(Pv),%ymm0
-	movd Rval,%xmm1
+	vmovd Rval,%xmm1
 	vpbroadcastd %xmm1,%ymm1
 	vpcmpgtd %ymm0,%ymm1,%ymm1
 	vpmovmskb %ymm1,%eax
@@ -196,7 +196,7 @@ C(found9):
 	jmp L(breakP)
 L(found18):
 	vmovdqu 10*4(Pv),%ymm0
-	movd Rval,%xmm1
+	vmovd Rval,%xmm1
 	vpbroadcastd %xmm1,%ymm1
 	vpcmpgtd %ymm0,%ymm1,%ymm1
 	vpmovmskb %ymm1,%eax
@@ -211,7 +211,7 @@ L(found18):
 	jmp L(breakP)
 L(found27):
 	vmovdqu 19*4(Pv),%ymm0
-	movd Rval,%xmm1
+	vmovd Rval,%xmm1
 	vpbroadcastd %xmm1,%ymm1
 	vpcmpgtd %ymm0,%ymm1,%ymm1
 	vpmovmskb %ymm1,%eax
