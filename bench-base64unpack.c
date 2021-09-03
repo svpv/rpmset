@@ -74,6 +74,7 @@ WRAP_LOOP(unpack11x8c15e2,   8,  15)
 WRAP_LOOP(unpack11x8c16e8,   8,  16)
 WRAP_LOOP(unpack11x9c18e9,   9,  18)
 WRAP_LOOP(unpack12x8c16,     8,  16)
+WRAP_LOOP(unpack12x16c32,   16,  32)
 WRAP_LOOP(unpack13x7c16e5,   7,  16)
 WRAP_LOOP(unpack13x6c13o1,   6,  13)
 WRAP_LOOP(unpack14x6c14,     6,  14)
@@ -164,6 +165,7 @@ int main()
     bench_LOOP("unpack11x8e", pack11x8c16e8, LOOP_unpack11x8c16e8,   11,  8, 16, 8, 0);
     bench_LOOP("unpack11x9",  pack11x9c18e9, LOOP_unpack11x9c18e9,   11,  9, 18, 9, 0);
     bench_LOOP("unpack12x8",  pack12x8c16,   LOOP_unpack12x8c16,     12,  8, 16, 0, 0);
+    bench_LOOP("unpack12x16", pack12x16c32,  LOOP_unpack12x16c32,    12, 16, 32, 0, 0);
     bench_LOOP("unpack13x6",  pack13x6c13,   LOOP_unpack13x6c13o1,   13,  6, 13, 0, 1);
     bench_LOOP("unpack13x7",  pack13x7c16e5, LOOP_unpack13x7c16e5,   13,  7, 16, 5, 0);
     bench_LOOP("unpack14x6",  pack14x6c14,   LOOP_unpack14x6c14,     14,  6, 14, 0, 0);

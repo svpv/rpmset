@@ -205,6 +205,44 @@ static inline V32x4 glue24(V32x4 x)
 
 #endif
 
+#ifdef __AVX2__
+#include <immintrin.h>
+
+#define W32x8 __m256i
+#define WLOAD(p) _mm256_loadu_si256((const void *)(p))
+#define WSTORE(p, x) _mm256_storeu_si256((void *)(p), x)
+
+#define WDUP8(k) _mm256_set1_epi8(k)
+#define WDUP32(k) _mm256_set1_epi32(k)
+
+#define WADD8(x, y) _mm256_add_epi8(x, y)
+#define WCMPEQ8(x, y) _mm256_cmpeq_epi8(x, y)
+
+#define W8x32_C _mm256_setr_epi8
+#define WSHUF8(x, t) _mm256_shuffle_epi8(x, t)
+
+#define WEXTR128(y, k) _mm256_extracti128_si256(y, k)
+
+#define WSHL16(x, k) _mm256_slli_epi16(x, k)
+#define WSHR16(x, k) _mm256_srli_epi16(x, k)
+#define WSHL32(x, k) _mm256_slli_epi32(x, k)
+#define WSHR32(x, k) _mm256_srli_epi32(x, k)
+#define WSHR64(x, k) _mm256_srli_epi64(x, k)
+
+#define WBLEND16(x, y, c) _mm256_blend_epi16(x, y, c)
+
+#define WOR(x, y) _mm256_or_si256(x, y)
+#define WAND(x, y) _mm256_and_si256(x, y)
+#define WTESTZ(x, y) _mm256_testz_si256(x, y)
+
+#define Wglue12(x) _mm256_maddubs_epi16(x, _mm256_set1_epi32(0x40014001))
+#define Wglue24(x) _mm256_madd_epi16(x, _mm256_set1_epi32(0x10000001))
+
+#define WMOVZWLO(x) _mm256_cvtepu16_epi32(WEXTR128(x, 0))
+#define WMOVZWHI(x) _mm256_cvtepu16_epi32(WEXTR128(x, 1))
+
+#endif
+
 // Decode 16 base64 characters into 6-bit values.
 // The lo and hi registers convey additional information to validate the input.
 static inline V32x4 unpack6x(V32x4 x, V32x4 *lo, V32x4 *hi)
@@ -243,6 +281,41 @@ static inline bool u6err(V32x4 lo, V32x4 hi)
     hi = VSHUF8(lut_hi, hi);
     return !VTESTZ(lo, hi);
 }
+
+#ifdef W32x8
+static inline W32x8 Wunpack6x(W32x8 x, W32x8 *lo, W32x8 *hi)
+{
+    W32x8 w2f = WDUP8(0x2f);
+    *hi = WSHR32(x, 4);
+    *lo = WAND(x, w2f);
+    *hi = WAND(*hi, w2f);
+    const W32x8 lut_roll = W8x32_C(
+	    0, 16, 19, 4, -65, -65, -71, -71,
+	    0,  0,  0, 0,   0,   0,   0,   0,
+	    0, 16, 19, 4, -65, -65, -71, -71,
+	    0,  0,  0, 0,   0,   0,   0,   0);
+    W32x8 eq2f = WCMPEQ8(x, w2f);
+    W32x8 roll = WSHUF8(lut_roll, WADD8(*hi, eq2f));
+    return WADD8(x, roll);
+}
+
+static inline bool Wu6err(W32x8 lo, W32x8 hi)
+{
+    const W32x8 lut_lo = W8x32_C(
+	    0x15, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
+	    0x11, 0x11, 0x13, 0x1a, 0x1b, 0x1b, 0x1b, 0x1a,
+	    0x15, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
+	    0x11, 0x11, 0x13, 0x1a, 0x1b, 0x1b, 0x1b, 0x1a);
+    const W32x8 lut_hi = W8x32_C(
+	    0x10, 0x10, 0x01, 0x02, 0x04, 0x08, 0x04, 0x08,
+	    0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10,
+	    0x10, 0x10, 0x01, 0x02, 0x04, 0x08, 0x04, 0x08,
+	    0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10);
+    lo = WSHUF8(lut_lo, lo);
+    hi = WSHUF8(lut_hi, hi);
+    return !WTESTZ(lo, hi);
+}
+#endif
 
 static inline bool unpack6(const char *s, V32x4 *x)
 {
@@ -668,6 +741,30 @@ static inline bool unpack12x8c16(const char *s, uint32_t *v, unsigned *e)
     VSTORE(v + 0, VMOVZWLO(x));
     VSTORE(v + 4, VMOVZWHI(x));
     return (void) e, true;
+}
+
+static inline bool unpack12x16c32(const char *s, uint32_t *v, unsigned *e)
+{
+#ifdef W32x8
+    W32x8 x, lo, hi;
+    x = Wunpack6x(WLOAD(s), &lo, &hi);
+    x = Wglue12(x);
+    if (Wu6err(lo, hi)) return false;
+    WSTORE(v + 0, WMOVZWLO(x));
+    WSTORE(v + 8, WMOVZWHI(x));
+    return (void) e, true;
+#else
+    V32x4 x, y;
+    if (!unpack6(s +  0, &x)) return false;
+    x = glue12(x);
+    if (!unpack6(s + 16, &y)) return false;
+    y = glue12(y);
+    VSTORE(v +  0, VMOVZWLO(x));
+    VSTORE(v +  4, VMOVZWHI(x));
+    VSTORE(v +  8, VMOVZWLO(y));
+    VSTORE(v + 12, VMOVZWHI(y));
+    return (void) e, true;
+#endif
 }
 
 static inline bool unpack13x6c13o1(const char *s, uint32_t *v, unsigned *e)

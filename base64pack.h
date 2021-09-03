@@ -569,6 +569,12 @@ static inline void pack12x8c16(const uint32_t *v, char *s, unsigned e)
     (void) e;
 }
 
+static inline void pack12x16c32(const uint32_t *v, char *s, unsigned e)
+{
+    pack12x8c16(v + 0, s +  0, e);
+    pack12x8c16(v + 8, s + 16, e);
+}
+
 static inline void pack13x6c13(const uint32_t *v, char *s, unsigned e)
 {
     s[ 0] = base64[(v[0] & Mask( 6))];

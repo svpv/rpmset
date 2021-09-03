@@ -524,6 +524,11 @@ static inline bool unpack12x8c16(const char *s, uint32_t *v, unsigned *e)
     return (void) e, true;
 }
 
+static inline bool unpack12x16c32(const char *s, uint32_t *v, unsigned *e)
+{
+    return unpack12x8c16(s + 0, v + 0, e) && unpack12x8c16(s + 16, v + 8, e);
+}
+
 static inline bool unpack13x6c13o1(const char *s, uint32_t *v, unsigned *e)
 {
     int32_t x;

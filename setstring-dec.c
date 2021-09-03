@@ -295,10 +295,17 @@ static inline size_t dec1(const char *s, size_t len6, int bpp, int m, uint32_t v
     return v - v_start;
 }
 
+#ifdef __AVX2__
+#define ZU _mm256_zeroupper
+#else
+static inline void dummy(void) { }
+#define ZU dummy
+#endif
+
 #define Routine(unpack, m, kn, kc, ke, ko, kq) \
 __attribute__((flatten)) \
 static size_t decode##m(const char *s, size_t len, int bpp, uint32_t v[]) \
-{ return dec1(s, len, bpp, m, v, unpack, kn, kc, ke, ko, kq); }
+{ return ZU(), dec1(s, len, bpp, m, v, unpack, kn, kc, ke, ko, kq); }
 
 #define Routines \
     Routine(unpack5x19c16e1,    5, 19, 16, 1, 0, 5) \
@@ -308,7 +315,7 @@ static size_t decode##m(const char *s, size_t len, int bpp, uint32_t v[]) \
     Routine(unpack9x10c15,      9, 10, 15, 0, 0, 5) \
     Routine(unpack10x9c15,     10,  9, 15, 0, 0, 5) \
     Routine(unpack11x9c18e9,   11,  9, 18, 9, 0, 4) \
-    Routine(unpack12x8c16,     12,  8, 16, 0, 0,10) \
+    Routine(unpack12x16c32,    12, 16, 32, 0, 0,10) \
     Routine(unpack13x6c13o1,   13,  6, 13, 0, 1, 5) \
     Routine(unpack14x6c14,     14,  6, 14, 0, 0, 5) \
     Routine(unpack15x6c15,     15,  6, 15, 0, 0, 5) \
