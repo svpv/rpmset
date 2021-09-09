@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <assert.h>
+#include <unistd.h>
 #include <pthread.h>
 #ifdef __SSE2__
 #include <emmintrin.h>
@@ -44,7 +45,10 @@ static struct cache *cache_tlsobj(void)
     struct cache *C = pthread_getspecific(cache_key);
     if (likely(C))
 	return C;
-    C = aligned_alloc(64, sizeof *C); // to CPU cache line
+    long align = sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
+    if (align != 32 && align != 128)
+	align = 64;
+    C = aligned_alloc(align, sizeof *C);
     assert(C);
     memset(C, 0, sizeof *C);
     int rc = pthread_setspecific(cache_key, C);
