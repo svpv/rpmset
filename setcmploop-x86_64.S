@@ -27,7 +27,7 @@
 
 FUNC(setcmploop_sse2)
 	cmpl $0,-4(Rv,Rend,4)
-	js setcmploop_cmov
+	jl setcmploop_cmov
 	mov (Rv),Rval
 	mov (Pv),Pval
 	lea (Pv,Pend,4),Pend
@@ -146,7 +146,7 @@ ENDF(setcmploop_sse2)
 
 FUNC(setcmploop_avx2)
 	cmpl $0,-4(Rv,Rend,4)
-	js setcmploop_cmov
+	jl setcmploop_cmov
 	mov (Rv),Rval
 	mov (Pv),Pval
 	lea (Pv,Pend,4),Pend
